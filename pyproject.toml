@@ -1,0 +1,130 @@
+[project]
+name = "the-sentinel"
+version = "0.1.0"
+description = "Autonomous web testing agent for untestable environments - Shadow DOMs, Canvas, and Bot-protected sites"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Dhiraj Das", email = "contact@dhirajdas.dev"}
+]
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Testing :: Acceptance",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+keywords = [
+    "automation",
+    "testing", 
+    "selenium",
+    "ai",
+    "autonomous",
+    "shadow-dom",
+    "web-testing",
+    "bot-detection",
+    "visual-testing"
+]
+
+dependencies = [
+    # Core Dependencies
+    "selenium>=4.0.0",
+    "click>=8.0.0",
+    "rich>=13.0.0",  # For beautiful CLI output
+    
+    # Sense Layer
+    "lumos-shadowdom>=0.2.0",
+    "visual-guard>=0.1.0",
+    
+    # Action Layer  
+    "waitless>=0.1.0",
+    "selenium-teleport>=0.1.0",
+    "sb-stealth-wrapper>=0.2.0",
+    
+    # Validation Layer
+    "project-vandal>=0.2.0",
+    
+    # Reporting
+    "pytest-glow-report>=0.1.0",
+]
+
+[project.optional-dependencies]
+# Visual Sonar for RDP/Canvas automation (optional - requires OpenCV)
+vision = [
+    "wvdautomation>=0.3.0",
+]
+
+# Chatbot/GenAI testing support
+chatbot = [
+    "selenium-chatbot-test>=0.1.0",
+]
+
+# LLM integration for intelligent decisions
+llm = [
+    "pytest-mockllm>=0.2.0",
+    # Local SLM support (optional - requires ~4GB RAM)
+    # "llama-cpp-python>=0.2.0",
+]
+
+# Development dependencies
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mockllm>=0.2.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+]
+
+# Full installation with all features
+full = [
+    "wvdautomation>=0.3.0",
+    "selenium-chatbot-test>=0.1.0",
+    "pytest-mockllm>=0.2.0",
+]
+
+[project.scripts]
+sentinel = "sentinel.cli.main:cli"
+
+[project.urls]
+Homepage = "https://www.dhirajdas.dev"
+Documentation = "https://github.com/godhiraj-code/sentinel"
+Repository = "https://github.com/godhiraj-code/sentinel.git"
+Issues = "https://github.com/godhiraj-code/sentinel/issues"
+Changelog = "https://github.com/godhiraj-code/sentinel/blob/main/CHANGELOG.md"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["sentinel"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.black]
+line-length = 88
+target-version = ['py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true

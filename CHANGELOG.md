@@ -1,0 +1,101 @@
+# Changelog
+
+All notable changes to The Sentinel will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Planned
+- Local SLM integration (phi-3-mini)
+- Cloud LLM fallback (OpenAI, Anthropic)
+- Visual regression comparison
+- Session replay from reports
+
+---
+
+## [0.1.0] - 2024-12-25
+
+### Added
+
+#### Core Framework
+- **SentinelOrchestrator**: Main controller implementing Sense-Decide-Act loop
+- **ExecutionResult**: Structured result object with success status, steps, and decisions
+- **SentinelConfig**: Configuration dataclass for all options
+
+#### Sense Layer
+- **DOMMapper**: Discovers all interactive DOM elements
+- **Shadow DOM Support**: Integrates lumos-shadowdom for Web Components
+- **VisualAnalyzer**: Detects modals, spinners, captchas, and blocked states
+
+#### Intelligence Layer
+- **DecisionEngine**: Heuristic-based decision making with confidence scores
+- **Decision dataclass**: Structured representation of agent decisions
+
+#### Action Layer
+- **ActionExecutor**: Reliable execution with retry logic
+- **Teleporter**: Session state management via selenium-teleport
+- **StealthDriverManager**: Bot evasion via sb-stealth-wrapper
+
+#### Validation Layer
+- **UIMutator**: UI mutation testing via project-vandal
+- Multiple mutation strategies (stealth_disable, ghost_element, data_sabotage, etc.)
+
+#### Reporting
+- **FlightRecorder**: Comprehensive logging of all decisions
+- HTML report generation with decision timeline
+- JSON export for programmatic access
+
+#### CLI
+- `sentinel explore`: Autonomous website exploration
+- `sentinel stress`: UI mutation stress testing
+- `sentinel doctor`: System health check
+- `sentinel version`: Version information
+
+#### Documentation
+- Comprehensive README
+- User Guide with CLI and API reference
+- Technical Guide with architecture deep-dive
+- Blog post introducing the project
+- Contributing guidelines
+- Example scripts (basic, shadow DOM, stealth, mutation testing)
+
+### Technical Details
+- Python 3.9+ support
+- Selenium 4.x base
+- Click-based CLI with Rich formatting
+- Modular layer architecture
+- Graceful degradation for missing dependencies
+
+### Known Limitations
+- Heuristic-only decision making (LLM integration coming)
+- Limited to Chrome browser
+- Some complex goals may require breakdown into steps
+
+---
+
+## Future Releases
+
+### [0.2.0] - Planned Q1 2025
+- Local SLM integration (phi-3-mini via llama-cpp-python)
+- Cloud LLM fallback for complex decisions
+- pytest-mockllm integration for testing
+- Improved goal understanding
+
+### [0.3.0] - Planned Q2 2025
+- Visual regression via visual-guard
+- Screenshot-based element detection
+- Before/after comparison in reports
+- Visual change alerts
+
+### [0.4.0] - Planned Q3 2025  
+- Self-healing capabilities
+- Automatic selector recovery
+- Test generation from exploration
+- Failure pattern learning
+
+---
+
+[Unreleased]: https://github.com/godhiraj-code/sentinel/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/godhiraj-code/sentinel/releases/tag/v0.1.0
