@@ -19,7 +19,8 @@ The Sentinel is a unified autonomous web testing framework that combines the pow
 | Hardcode wait times | Automatic UI stability detection |
 | Fail on DOM changes | **Self-healing** element recovery |
 | Detect bot protection | Built-in stealth mode |
-| Manual debugging | Flight recorder with decision logs |
+| Manual debugging | Flight recorder with **multi-state screenshots** |
+| Goal Verification | **Rigorous assertion-based verification** |
 | Cloud-only AI | **Local SLM support** (offline, privacy-first) |
 
 ---
@@ -199,12 +200,13 @@ Options:
 
 ## 📊 Reports & Debugging
 
-The Sentinel generates detailed HTML reports with:
+The Sentinel generates detailed HTML reports (powered by `pytest-glow-report`) with:
 
-- **Decision Timeline**: Every action the agent took
-- **World State Snapshots**: Elements discovered at each step
-- **Screenshots**: Visual record of each step
-- **Confidence Scores**: How sure the agent was about each decision
+- **Decision Timeline**: Every action the agent took.
+- **World State Snapshots**: Elements discovered at each step.
+- **Multi-State Screenshots**: Visual record of Navigation, World State, and After-Action result.
+- **Confidence Scores**: How sure the agent was about each decision.
+- **Heuristic Log**: Details on why a goal was marked as achieved.
 
 Reports are saved to `./sentinel_reports/YYYYMMDD_HHMMSS/report.html`
 
@@ -274,17 +276,18 @@ mutator.revert_mutation(mutation)
 
 ## 📈 Roadmap
 
-### Current (v0.2.0) ✅
+### Current (v0.3.0) ✅
 - ✅ Core Sense-Decide-Act loop
 - ✅ Shadow DOM support
 - ✅ Stealth mode
 - ✅ HTML report generation
-- ✅ Heuristic decision making
-- ✅ **Local SLM integration** (Phi-3, Mistral via llama-cpp-python)
-- ✅ **Self-healing actions** (JS fallback, stale element recovery)
-- ✅ **Vision foundation** (VisualAgent for VLM prep)
+- ✅ Rigorous Goal Verification
+- ✅ **Local SLM integration** (Phi-3, Mistral)
+- ✅ **Self-healing actions** (JS fallback)
+- ✅ **Waitless-Native stability** (Zero-delay automation)
+- ✅ **Multi-state Visual Logging**
 
-### Next Phase (v0.3.0)
+### Next Phase (v0.4.0)
 - 🔄 VLM integration (Moondream, LLaVA)
 - 🔄 Human-in-the-Loop mode
 - 🔄 Visual regression comparison

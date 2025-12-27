@@ -41,12 +41,12 @@ You simply tell The Sentinel what you want:
 # The Sentinel approach
 agent = SentinelOrchestrator(
     url="https://example.com/login",
-    goal="Login with username 'test' and password 'pass123'"
+    goal="Login with username 'test' and password 'pass123' and verify 'Welcome' appears"
 )
 result = agent.run()
 ```
 
-The agent figures out how to achieve the goal autonomously.
+The agent figures out how to achieve the goal autonomously and **rigorously verifies** the outcome before finishing.
 
 ---
 
@@ -145,8 +145,9 @@ from sentinel import SentinelOrchestrator
 # Create the agent
 agent = SentinelOrchestrator(
     url="https://demo.playwright.dev/todomvc/",
-    goal="Add 'Buy milk' to the todo list",
-    max_steps=10  # Limit exploration steps
+    goal="Add 'Buy milk' to the todo list and verify 'Buy milk' exists",
+    max_steps=10,  # Limit exploration steps
+    stability_mode="relaxed"  # Optional: customize waitless behavior
 )
 
 # Run and get results
@@ -186,7 +187,10 @@ sentinel explore <url> <goal> [OPTIONS]
 | `--training` | Off | Use mock LLM (free mode) |
 | `--max-steps` | 50 | Maximum exploration steps |
 | `--brain` | auto | Intelligence: auto, heuristic, cloud, local |
-| `--model` | None | Model name/path for cloud or local brain |
+| `--model` | None | Model name/path for brain |
+| `--stability-timeout` | 15 | Timeout for UI stability (seconds) |
+| `--mutation-threshold` | 200 | Pixels-per-frame to consider stable |
+| `--stability-mode` | relaxed | relaxed, strict, disabled |
 | `--report-dir` | `./sentinel_reports` | Report output directory |
 
 **Examples:**
@@ -279,6 +283,9 @@ agent = SentinelOrchestrator(
     training_mode=False,
     max_steps=50,
     timeout=30,
+    stability_timeout=15,
+    mutation_threshold=200,
+    stability_mode="relaxed",
     report_dir="./sentinel_reports"
 )
 ```
@@ -460,11 +467,14 @@ sentinel_reports/
 ### Report Contents
 
 The HTML report includes:
-- **Summary**: Success/failure, duration, step count
-- **Decision Timeline**: Each action with timestamp
-- **World State Snapshots**: Elements discovered
-- **Screenshots**: Visual record of each step
-- **Error Details**: If exploration failed
+- **Summary**: Success/failure, duration, step count.
+- **Decision Timeline**: Each action with timestamp.
+- **World State Snapshots**: Elements discovered.
+- **Multi-State Screenshots**:
+    - `navigation.png`: Visual start state.
+    - `step_N_world_state.png`: What the agent saw before deciding.
+    - `step_N_after_action.png`: Visual proof of action execution.
+- **Error Details**: If exploration failed.
 
 ### Accessing Report Data Programmatically
 

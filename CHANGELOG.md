@@ -5,6 +5,26 @@ All notable changes to The Sentinel will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-12-27
+
+### Added
+- **Rigorous Verification**: Enhanced goal perception to support explicit verification clauses (e.g., `"verify the title 'X' appears"`).
+- **Multi-State Visual Logging**: Added 3-point screenshot capture (Navigation, World State, After Action) for high-fidelity debugging.
+- **Waitless-Native Drive**: Orchestrator and ActionExecutor now use a native waitless-wrapped driver, ensuring zero stability signal bypasses.
+- **Enhanced Verification Engine**: Implemented `_extract_verify_text` and robust text visibility checks independent of URL changes.
+- **Integration Test Suite**: Added a comprehensive suite of integration tests covering TodoMVC, dhirajdas.dev (rigorous), and dynamic loading.
+
+### Fixed
+- **Waitless Bypass**: Fixed architectural flaws where `WebDriverWait` was bypassing the `waitless` stabilization layer.
+- **Click Detection Flakiness**: Significantly improved `ActionExecutor.click` success detection during page transitions and animations.
+- **Config Propagation**: Fixed issues where `waitless` stability parameters were not propagating correctly from CLI/API to the driver.
+
+### Updated
+- **SentinelOrchestrator API**: Added `stability_timeout`, `mutation_threshold`, and `stability_mode` parameters to the constructor.
+- **FlightRecorder**: Added `log_info` support and updated emoji-rich event logging.
+
+---
+
 ## [0.2.0] - 2025-12-27
 
 ### Added

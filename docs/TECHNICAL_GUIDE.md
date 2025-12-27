@@ -81,7 +81,9 @@ class SentinelOrchestrator:
 | `_initialize()` | Lazy initialization of all layers |
 | `run()` | Execute the main loop |
 | `_handle_blocked_state()` | Recovery from modal/spinner states |
-| `_goal_achieved()` | Heuristic goal completion check |
+| `_goal_achieved()` | Heuristic + Rigorous goal completion check |
+| `_extract_verify_text()` | Extract assertion targets from goal string |
+| `_text_visible_on_page()` | High-fidelity visibility check |
 
 **State Management:**
 ```python
@@ -107,6 +109,9 @@ def create_driver(
     profile_path: Optional[str] = None,
     enable_shadow_dom: bool = True,
     enable_stability: bool = True,
+    stability_timeout: int = 15,
+    mutation_threshold: int = 200,
+    stability_mode: str = "relaxed",
 ) -> WebDriver
 ```
 
@@ -326,11 +331,15 @@ def execute(self, decision: Decision) -> bool:
     """
     1. Resolve target to WebElement
     2. Scroll element into view
-    3. Wait for stability (if waitless enabled)
-    4. Execute action with retry logic
+    3. Execute action via native waitless-wrapped driver
+    4. Handle navigation-induced exceptions during stability checks
     5. Return success/failure
     """
 ```
+
+**Waitless-Native Architecture (v0.3.0):**
+
+Unlike previous versions that used explicit `WebDriverWait` loops, the v0.3.0 ActionExecutor relies almost entirely on the **Waitless-native driver**. Every `find_element` call is automatically wrapped with mutation-rate analysis, ensuring that the agent never acts on a moving or settling UI.
 
 **Retry Logic:**
 ```python
@@ -751,13 +760,16 @@ def test_full_exploration():
 
 ## Development Phases
 
-### ✅ Completed (v0.2.0)
-- Local SLM Integration (Phi-3, Mistral via llama-cpp-python)
+### ✅ Completed (v0.3.0)
+- Local SLM Integration (Phi-3, Mistral)
 - Self-Healing Actions (JS fallback, stale element recovery)
-- Vision Foundation (VisualAgent with Moondream2, OpenAI, mock)
+- Vision Foundation (VisualAgent basic integration)
 - Session Replay (view and re-execute past sessions)
+- **Waitless-Native Drive** (Robustness hardening)
+- **Rigorous Verification Engine** (Assert mode)
+- **Multi-State Visual Logging**
 
-### 🔄 In Progress (v0.3.0)
+### 🔄 In Progress (v0.4.0)
 - Human-in-the-Loop mode
 - Visual regression comparison
 - Test generation from exploration
@@ -766,6 +778,7 @@ def test_full_exploration():
 - Multi-Agent parallel exploration
 - Distributed testing
 - Shared knowledge graph
+- VLM-dominant reasoning flow (GPT-4o / GPT-4V)
 
 ---
 
