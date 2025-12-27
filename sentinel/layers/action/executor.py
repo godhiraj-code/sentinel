@@ -139,8 +139,30 @@ class ActionExecutor:
                         if not element: break
                         self._scroll_into_view(element)
 
+                    # Store URL before click to detect navigation
+                    url_before = self.driver.current_url
+                    
                     element.click()
-                    self._wait_for_stability()
+                    
+                    # Wait for stability - but page navigation causes exceptions
+                    try:
+                        self._wait_for_stability()
+                    except (Exception, StaleElementReferenceException) as stability_err:
+                        # If page navigated or element became stale, it's often a success
+                        url_after = self.driver.current_url
+                        if url_before != url_after:
+                            # Navigation occurred - absolute success
+                            return ActionResult(
+                                success=True,
+                                action="click",
+                                target=element_node.selector,
+                                duration_ms=(time.time() - start_time) * 1000,
+                                metadata={"navigation": True}
+                            )
+                        # If no navigation but exception, it might be a real failure or 
+                        # just a transient issue. We'll let the loop retry.
+                        raise stability_err
+                    
                     return ActionResult(
                         success=True,
                         action="click",
@@ -148,6 +170,18 @@ class ActionExecutor:
                         duration_ms=(time.time() - start_time) * 1000,
                     )
                 except Exception as e:
+                    # Check if navigation happened even if click threw exception
+                    try:
+                        if self.driver.current_url != url_before:
+                             return ActionResult(
+                                success=True,
+                                action="click",
+                                target=element_node.selector,
+                                duration_ms=(time.time() - start_time) * 1000,
+                                metadata={"navigation": True, "error_suppressed": str(e)}
+                            )
+                    except: pass
+                    
                     # If this is the last attempt, try Strategy 2 (JS Fallback)
                     if attempt == self.max_retries - 1:
                         break
@@ -158,8 +192,23 @@ class ActionExecutor:
                 # Re-resolve one last time for JS click
                 element = self._resolve_element(element_node)
                 if element:
+                    url_before = self.driver.current_url
                     self.driver.execute_script("arguments[0].click();", element)
-                    self._wait_for_stability()
+                    
+                    # Wait for stability
+                    try:
+                        self._wait_for_stability()
+                    except Exception:
+                        # Success if URL changed
+                        if self.driver.current_url != url_before:
+                             return ActionResult(
+                                success=True,
+                                action="click",
+                                target=element_node.selector,
+                                duration_ms=(time.time() - start_time) * 1000,
+                                metadata={"strategy": "js_fallback", "navigation": True}
+                            )
+                    
                     return ActionResult(
                         success=True,
                         action="click",
@@ -168,6 +217,15 @@ class ActionExecutor:
                         metadata={"strategy": "js_fallback"}
                     )
             except Exception as js_error:
+                # One last check for navigation
+                if self.driver.current_url != url_before:
+                    return ActionResult(
+                        success=True,
+                        action="click",
+                        target=element_node.selector,
+                        duration_ms=(time.time() - start_time) * 1000,
+                        metadata={"navigation": True}
+                    )
                 raise Exception(f"JS Click failed: {js_error}")
 
         except Exception as e:
@@ -365,19 +423,33 @@ class ActionExecutor:
         return self._find_element(element_node.selector)
 
     def _find_element(self, selector: str) -> Optional["WebElement"]:
-        """Find an element by selector with automatic wait."""
-        from selenium.webdriver.common.by import By
-        from selenium.webdriver.support.ui import WebDriverWait
-        from selenium.webdriver.support import expected_conditions as EC
+        """
+        Find an element by selector using waitless-native retry pattern.
+        
+        Uses the wrapped driver's find_element which respects waitless
+        stability checks instead of bypassing with WebDriverWait.
+        """
+        import time
 
         try:
             # Check if it's a shadow path (contains >>)
             if ">>" in selector and hasattr(self.driver, "find_shadow"):
                 return self.driver.find_shadow(selector, timeout=self.timeout)
             
-            # Standard CSS selector with smart wait
-            wait = WebDriverWait(self.driver, self.timeout / 3) # Faster timeout for find
-            return wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, selector)))
+            # Waitless-native retry pattern:
+            # Use wrapped driver's find_element which respects stability
+            end_time = time.time() + (self.timeout / 3)  # Faster timeout for find
+            while time.time() < end_time:
+                try:
+                    # This goes through wrapped driver - waitless handles stability
+                    elem = self.driver.find_element("css selector", selector)
+                    if elem:
+                        return elem
+                except Exception:
+                    pass
+                time.sleep(0.2)  # Short sleep between attempts
+            
+            return None
         except Exception:
             return None
 

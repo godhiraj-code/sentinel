@@ -32,7 +32,14 @@ def cli():
 @click.option('--brain', default='auto', help='Intelligence Strategy: auto, heuristic, cloud, local')
 @click.option('--model', default=None, help='Specific model name (e.g. gpt-4, claude-3) or path')
 @click.option('--report-dir', default='./sentinel_reports', help='Report output directory')
-def explore(url, goal, stealth, headless, training, max_steps, report_dir, brain, model):
+@click.option('--stability-timeout', default=15, type=int,
+              help='Waitless stability timeout in seconds (default: 15)')
+@click.option('--mutation-threshold', default=200, type=int,
+              help='DOM mutations/sec considered stable (default: 200, increase for animated sites)')
+@click.option('--stability-mode', default='relaxed', type=click.Choice(['strict', 'normal', 'relaxed']),
+              help='Stability strictness: strict/normal/relaxed (default: relaxed)')
+def explore(url, goal, stealth, headless, training, max_steps, report_dir, brain, model,
+            stability_timeout, mutation_threshold, stability_mode):
     """
     Explore a URL with an autonomous goal.
     
@@ -80,6 +87,9 @@ def explore(url, goal, stealth, headless, training, max_steps, report_dir, brain
                 report_dir=report_dir,
                 brain_type=brain,
                 model_name=model,
+                stability_timeout=stability_timeout,
+                mutation_threshold=mutation_threshold,
+                stability_mode=stability_mode,
             )
             
             progress.update(task, description="Running exploration...")

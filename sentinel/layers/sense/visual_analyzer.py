@@ -82,15 +82,22 @@ class VisualAnalyzer:
         ".toast-error",
     ]
     
-    # Captcha indicator patterns
-    CAPTCHA_PATTERNS = [
-        "captcha",
+    # Captcha indicator patterns (high confidence - specific captcha services)
+    CAPTCHA_PATTERNS_HIGH = [
         "recaptcha",
         "hcaptcha",
-        "challenge",
+        "g-recaptcha",
+        "h-captcha",
+        "cf-turnstile",  # Cloudflare Turnstile
+        "arkose",
+    ]
+    
+    # Captcha indicator patterns (medium confidence - need additional context)
+    CAPTCHA_PATTERNS_MEDIUM = [
         "verify you're human",
         "prove you're not a robot",
-        "security check",
+        "security check required",
+        "complete the captcha",
     ]
     
     def __init__(self, driver: "WebDriver"):
@@ -235,21 +242,35 @@ class VisualAnalyzer:
         return False, ""
     
     def _has_captcha(self) -> Tuple[bool, str]:
-        """Check for captcha challenges."""
+        """Check for captcha challenges with reduced false positives."""
         try:
             page_source = self.driver.page_source.lower()
             
-            for pattern in self.CAPTCHA_PATTERNS:
+            # High confidence patterns - block immediately
+            for pattern in self.CAPTCHA_PATTERNS_HIGH:
                 if pattern in page_source:
                     return True, f"Captcha detected ({pattern})"
             
-            # Check for iframe-based captchas
+            # Medium confidence patterns - need to verify in visible text
+            for pattern in self.CAPTCHA_PATTERNS_MEDIUM:
+                if pattern in page_source:
+                    # Double-check: is this in a visible element?
+                    try:
+                        visible_text = self.driver.execute_script(
+                            "return document.body.innerText.toLowerCase();"
+                        )
+                        if pattern in visible_text:
+                            return True, f"Captcha detected ({pattern})"
+                    except:
+                        pass
+            
+            # Check for iframe-based captchas (high confidence only)
             iframes = self.driver.find_elements("tag name", "iframe")
             for iframe in iframes:
                 src = iframe.get_attribute("src") or ""
                 title = iframe.get_attribute("title") or ""
                 
-                for pattern in self.CAPTCHA_PATTERNS:
+                for pattern in self.CAPTCHA_PATTERNS_HIGH:
                     if pattern in src.lower() or pattern in title.lower():
                         return True, f"Captcha iframe detected ({pattern})"
         except Exception:

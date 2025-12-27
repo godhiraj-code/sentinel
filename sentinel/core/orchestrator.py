@@ -65,6 +65,10 @@ class SentinelConfig:
     brain_type: str = "auto"
     model_name: Optional[str] = None
     use_vision: bool = False  # Enable VLM visual analysis
+    # Waitless stability configuration
+    stability_timeout: int = 15  # Seconds to wait for UI stability
+    mutation_threshold: int = 200  # mutations/sec considered stable
+    stability_mode: str = "relaxed"  # strict, normal, relaxed
 
 
 class SentinelOrchestrator:
@@ -104,6 +108,9 @@ class SentinelOrchestrator:
         brain_type: str = "auto",
         model_name: Optional[str] = None,
         use_vision: bool = False,
+        stability_timeout: int = 15,
+        mutation_threshold: int = 200,
+        stability_mode: str = "relaxed",
     ):
         """
         Initialize the Sentinel orchestrator.
@@ -112,6 +119,9 @@ class SentinelOrchestrator:
             brain_type: Strategy for brain selection ("auto", "heuristic", "cloud", "local")
             model_name: Specific model name/path (e.g. "gpt-4", "c:/models/phi3.gguf")
             use_vision: Enable VLM-based visual analysis for element detection
+            stability_timeout: Waitless stability timeout in seconds
+            mutation_threshold: DOM mutations/sec considered stable
+            stability_mode: Stability strictness ('strict', 'normal', 'relaxed')
         """
         self.config = SentinelConfig(
             url=url,
@@ -125,6 +135,9 @@ class SentinelOrchestrator:
             brain_type=brain_type,
             model_name=model_name,
             use_vision=use_vision,
+            stability_timeout=stability_timeout,
+            mutation_threshold=mutation_threshold,
+            stability_mode=stability_mode,
         )
         
         self._driver: Optional[WebDriverType] = None
@@ -164,6 +177,9 @@ class SentinelOrchestrator:
                     stealth_mode=False,
                     enable_shadow_dom=True,
                     enable_stability=True,
+                    stability_timeout=self.config.stability_timeout,
+                    mutation_threshold=self.config.mutation_threshold,
+                    stability_mode=self.config.stability_mode,
                 )
         else:
             # Create standard driver with enhancements
@@ -172,6 +188,9 @@ class SentinelOrchestrator:
                 stealth_mode=False,
                 enable_shadow_dom=True,
                 enable_stability=True,
+                stability_timeout=self.config.stability_timeout,
+                mutation_threshold=self.config.mutation_threshold,
+                stability_mode=self.config.stability_mode,
             )
         
         # Initialize layers
@@ -206,12 +225,23 @@ class SentinelOrchestrator:
             self._driver.get(self.config.url)
             self._recorder.log_navigation(self.config.url)
             
+            # Screenshot after navigation
+            if self.config.screenshot_on_step:
+                self._recorder.capture_screenshot("navigation", driver=self._driver)
+            
             for step in range(self.config.max_steps):
+                # Wait for target element if class is specified in goal
+                self._wait_for_target_element()
+                
                 # 1. SENSE - Build world state
                 world_state = self._dom_mapper.get_world_state()
                 is_blocked, reason = self._visual_analyzer.is_blocked()
                 
                 self._recorder.log_world_state(step, world_state, is_blocked, reason)
+                
+                # Screenshot showing world state (before action)
+                if self.config.screenshot_on_step:
+                    self._recorder.capture_screenshot(f"step_{step}_world_state", driver=self._driver)
                 
                 if is_blocked:
                     # Try to handle blocking element
@@ -236,7 +266,7 @@ class SentinelOrchestrator:
                 
                 # Take screenshot after action to show the result
                 if self.config.screenshot_on_step:
-                    self._recorder.capture_screenshot(f"step_{step}_result", driver=self._driver)
+                    self._recorder.capture_screenshot(f"step_{step}_after_action", driver=self._driver)
                 
                 # Check if goal is achieved
                 if self._goal_achieved(decisions):
@@ -337,6 +367,45 @@ class SentinelOrchestrator:
         
         return False
     
+    def _wait_for_target_element(self, timeout: int = 10) -> bool:
+        """
+        Wait for target element to appear if class is specified in goal.
+        
+        Uses waitless-native retry pattern - polls using the wrapped driver's
+        find_element which respects waitless stability checks.
+        
+        When user says "class blog-nudge-button", wait for that element
+        to appear in the DOM before proceeding with world state scan.
+        """
+        import re
+        import time
+        
+        # Extract class name from goal
+        goal = self.config.goal.lower()
+        class_match = re.search(r"class[:\s]+([a-zA-Z0-9_-]+)", goal)
+        
+        if not class_match:
+            return True  # No specific class requested
+        
+        class_name = class_match.group(1)
+        selector = f".{class_name}"
+        
+        # Waitless-native retry pattern:
+        # Use wrapped driver's find_element which respects stability
+        end_time = time.time() + timeout
+        while time.time() < end_time:
+            try:
+                # This goes through wrapped driver - waitless handles stability
+                elem = self._driver.find_element("css selector", selector)
+                if elem and elem.is_displayed():
+                    return True
+            except Exception:
+                pass
+            time.sleep(0.3)  # Short sleep between attempts
+        
+        # Element didn't appear within timeout - continue anyway
+        return False
+    
     def _handle_captcha(self) -> bool:
         """Handle captcha challenges (delegates to stealth wrapper if available)."""
         # Captcha handling is best done by the stealth wrapper
@@ -348,32 +417,84 @@ class SentinelOrchestrator:
         """
         Check if the goal has been achieved.
         
-        Uses heuristics to determine goal completion:
-        - Explicit "goal_achieved" action
-        - High confidence final action
-        - For "add/type" goals: check if typed text appears on page
+        Uses heuristics and explicit verification:
+        1. Implicit verification via goal text (e.g., "verify X exists")
+        2. Explicit "goal_achieved" action from intelligence layer
+        3. Action-specific heuristics (URL change, typed text visibility)
         """
+        # PRIORITY 1: Rigorous Text Verification
+        # If the goal has a "verify" clause, it MUST pass regardless of other signals
+        verify_text = self._extract_verify_text()
+        if verify_text:
+            if self._text_visible_on_page(verify_text):
+                self._recorder.log_info(f"Goal verification successful: '{verify_text}' found on page")
+                return True
+            # If verify_text is specified but not yet found, we are not done
+            # even if the URL changed or confidence is high.
+            return False
+
         if not decisions:
             return False
-        
+            
         last_decision = decisions[-1]
         
-        # Check if the last decision indicates goal completion
+        # PRIORITY 2: Explicit Goal Achieved Signal
         if last_decision.action == "goal_achieved":
             return True
         
-        # Check confidence threshold
+        # PRIORITY 3: High Confidence Heuristics
         if last_decision.confidence >= 0.95:
             return True
         
-        # For type actions, verify the typed text appeared on the page
-        # This is a strong indicator that an "add" goal succeeded
+        # For type actions, verify the typed text appeared
         if last_decision.action == "type":
             typed_text = last_decision.metadata.get("text", "")
             if typed_text and self._text_visible_on_page(typed_text):
                 return True
         
+        # For click actions, basic navigation check (fallback if no verify clause)
+        if last_decision.action == "click":
+            goal_lower = self.config.goal.lower()
+            click_keywords = ["article", "read", "link", "button", "submit", "go to"]
+            if any(kw in goal_lower for kw in click_keywords):
+                try:
+                    current_url = self._driver.current_url
+                    # URL changed significantly
+                    if current_url != self.config.url and not current_url.endswith(self.config.url.rstrip('/')):
+                        return True
+                except:
+                    pass
+        
         return False
+    
+    def _extract_verify_text(self) -> Optional[str]:
+        """
+        Extract text to verify from goal.
+        Supports patterns:
+        - verify 'text'
+        - verify "text"
+        - verify [unquoted text] appears/exists/is visible
+        - verify heading [unquoted text]
+        """
+        import re
+        goal = self.config.goal
+        
+        # 1. Quoted text (Strongest match)
+        quoted_match = re.search(r"verify.*['\"]([^'\"]+)['\"]", goal, re.IGNORECASE)
+        if quoted_match:
+            return quoted_match.group(1)
+            
+        # 2. Unquoted "verify [text] exists/appears/is visible"
+        unquoted_match = re.search(r"verify\s+(.*?)\s+(exists|appears|is visible|exists)", goal, re.IGNORECASE)
+        if unquoted_match:
+            return unquoted_match.group(1).strip()
+            
+        # 3. Unquoted "verify heading/title [text]"
+        heading_match = re.search(r"verify\s+(heading|title|text)\s+(.*)$", goal, re.IGNORECASE)
+        if heading_match:
+            return heading_match.group(2).strip()
+            
+        return None
     
     def _text_visible_on_page(self, text: str) -> bool:
         """Check if specific text is visible on the page."""

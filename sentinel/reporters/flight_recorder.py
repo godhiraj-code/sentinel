@@ -20,7 +20,7 @@ class LogEntry:
     """A single log entry in the flight record."""
     timestamp: datetime
     step: int
-    event_type: str  # 'navigation', 'world_state', 'decision', 'action', 'warning', 'error'
+    event_type: str  # 'navigation', 'world_state', 'decision', 'action', 'warning', 'error', 'info'
     message: str
     data: Dict[str, Any] = field(default_factory=dict)
     screenshot_path: Optional[str] = None
@@ -142,6 +142,15 @@ class FlightRecorder:
             event_type="action",
             message=f"Action result: {'success' if success else 'failed'}",
             data={"success": success, "error": error},
+        ))
+    
+    def log_info(self, message: str) -> None:
+        """Log a general information message."""
+        self.entries.append(LogEntry(
+            timestamp=datetime.now(),
+            step=len(self.entries),
+            event_type="info",
+            message=message,
         ))
     
     def log_warning(self, message: str) -> None:
@@ -454,6 +463,7 @@ class FlightRecorder:
             "action": "⚡",
             "warning": "⚠️",
             "error": "❌",
+            "info": "ℹ️",
         }
         return icons.get(event_type, "📝")
     

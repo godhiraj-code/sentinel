@@ -76,7 +76,11 @@ def create_driver(
     stealth_mode: bool = False,
     profile_path: Optional[str] = None,
     enable_shadow_dom: bool = True,
-    enable_stability: bool = True,  # Re-enabled with relaxed config
+    enable_stability: bool = True,
+    # Waitless stability config
+    stability_timeout: int = 15,
+    mutation_threshold: int = 200,
+    stability_mode: str = "relaxed",
 ) -> WebDriverType:
     """
     Create a WebDriver instance with optional enhancements.
@@ -108,7 +112,12 @@ def create_driver(
         driver = _apply_shadow_dom_support(driver)
     
     if enable_stability:
-        driver = _apply_stability_wrapper(driver)
+        driver = _apply_stability_wrapper(
+            driver,
+            timeout=stability_timeout,
+            mutation_threshold=mutation_threshold,
+            strictness=stability_mode,
+        )
     
     return driver
 
@@ -223,19 +232,32 @@ def _apply_shadow_dom_support(driver: WebDriverType) -> WebDriverType:
         return driver
 
 
-def _apply_stability_wrapper(driver: WebDriverType) -> WebDriverType:
+def _apply_stability_wrapper(
+    driver: WebDriverType,
+    timeout: int = 15,
+    mutation_threshold: int = 200,
+    strictness: str = "relaxed",
+) -> WebDriverType:
     """
     Apply UI stability features using waitless.
     
     Wraps all actions with automatic quiescence detection.
+    
+    Args:
+        driver: WebDriver to wrap
+        timeout: Seconds to wait for stability (default: 15)
+        mutation_threshold: DOM mutations/sec considered stable (default: 200)
+        strictness: 'strict', 'normal', or 'relaxed' (default: 'relaxed')
     """
     try:
         from waitless import stabilize, StabilizationConfig
         
-        # Use relaxed configuration to avoid hangs
+        # Use user-configurable parameters
         config = StabilizationConfig(
-            timeout=5,  # Lower timeout - don't wait too long
-            strictness='relaxed',  # More forgiving of page activity
+            timeout=timeout,
+            strictness=strictness,
+            mutation_rate_threshold=mutation_threshold,
+            debug_mode=False,
         )
         
         stabilized = stabilize(driver, config=config)

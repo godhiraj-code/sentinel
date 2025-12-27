@@ -109,6 +109,13 @@ class HeuristicBrain(BrainInterface):
         quoted = re.findall(r"['\"]([^'\"]+)['\"]", goal)
         keywords["value"] = quoted
         
+        # Class name extraction (e.g., "with class blog-nudge-button")
+        class_match = re.search(r"class[:\s]+([a-zA-Z0-9_-]+)", goal)
+        if class_match:
+            keywords["class"] = class_match.group(1)
+        else:
+            keywords["class"] = None
+        
         return keywords
     
     def _score_element(
@@ -143,6 +150,14 @@ class HeuristicBrain(BrainInterface):
                 score += 0.4
             elif any(keyword in word for word in elem_text.split()):
                 score += 0.2
+        
+        # HIGH PRIORITY: Explicit class name match from goal
+        # If user said "class blog-nudge-button", prioritize exact matches
+        explicit_class = keywords.get("class")
+        if explicit_class:
+            elem_classes = elem.attributes.get("class", "")
+            if explicit_class in elem_classes:
+                score += 0.9  # Very high boost for exact class match
         
         # Attribute matching
         important_attrs = ["id", "class", "name", "placeholder", "aria-label", "title"]
