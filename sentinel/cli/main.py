@@ -29,8 +29,10 @@ def cli():
 @click.option('--training', is_flag=True, help='Use heuristic mode (no LLM, free)')
 @click.option('--max-steps', default=50, type=int, 
               help='Maximum exploration steps (use 5-10 for simple goals, 20-50 for complex flows)')
+@click.option('--brain', default='auto', help='Intelligence Strategy: auto, heuristic, cloud, local')
+@click.option('--model', default=None, help='Specific model name (e.g. gpt-4, claude-3) or path')
 @click.option('--report-dir', default='./sentinel_reports', help='Report output directory')
-def explore(url, goal, stealth, headless, training, max_steps, report_dir):
+def explore(url, goal, stealth, headless, training, max_steps, report_dir, brain, model):
     """
     Explore a URL with an autonomous goal.
     
@@ -42,9 +44,9 @@ def explore(url, goal, stealth, headless, training, max_steps, report_dir):
     
         sentinel explore "https://demo.playwright.dev/todomvc/" "Add 'Buy milk' to the list"
         
-        sentinel explore "https://example.com/login" "Login with test@test.com" --stealth
+        sentinel explore "https://example.com/login" "Login" --stealth --brain cloud
         
-        sentinel explore "https://example.com" "Click submit" --max-steps 10 --no-stealth
+        sentinel explore "https://example.com" "Complex goal" --brain cloud --model gpt-4
     """
     console.print(Panel.fit(
         f"[bold blue]🛡️ The Sentinel[/bold blue]\n"
@@ -54,8 +56,8 @@ def explore(url, goal, stealth, headless, training, max_steps, report_dir):
     
     console.print(f"\n[bold]Target:[/bold] {url}")
     console.print(f"[bold]Goal:[/bold] {goal}")
+    console.print(f"[bold]Brain:[/bold] {brain.upper() if brain else 'AUTO'}")
     console.print(f"[bold]Stealth Mode:[/bold] {'✅ Enabled' if stealth else '❌ Disabled'}")
-    console.print(f"[bold]Training Mode:[/bold] {'✅ Enabled (Mock LLM)' if training else '❌ Disabled'}")
     console.print()
     
     try:
@@ -76,6 +78,8 @@ def explore(url, goal, stealth, headless, training, max_steps, report_dir):
                 training_mode=training,
                 max_steps=max_steps,
                 report_dir=report_dir,
+                brain_type=brain,
+                model_name=model,
             )
             
             progress.update(task, description="Running exploration...")

@@ -25,6 +25,7 @@ class ActionResult:
     duration_ms: float
     error: Optional[str] = None
     screenshot_path: Optional[str] = None
+    metadata: Optional[dict] = None
 
 
 class ActionExecutor:
@@ -104,7 +105,7 @@ class ActionExecutor:
     
     def click(self, element_node: "ElementNode") -> ActionResult:
         """
-        Click an element with automatic stability wait.
+        Click an element with automatic stability wait and self-healing.
         
         Args:
             element_node: ElementNode from DOM mapper
@@ -115,6 +116,7 @@ class ActionExecutor:
         start_time = time.time()
         
         try:
+            # 1. Resolve and Scroll
             element = self._resolve_element(element_node)
             if element is None:
                 return ActionResult(
@@ -125,20 +127,20 @@ class ActionExecutor:
                     error="Element not found",
                 )
             
-            # Scroll element into view
             self._scroll_into_view(element)
-            
-            # Wait for stability
             self._wait_for_stability()
             
-            # Perform click with retries
+            # 2. Strategy 1: Standard Selenium Click
             for attempt in range(self.max_retries):
                 try:
+                    # Re-resolve if stale (Self-healing)
+                    if attempt > 0:
+                        element = self._resolve_element(element_node)
+                        if not element: break
+                        self._scroll_into_view(element)
+
                     element.click()
-                    
-                    # Post-click stability wait
                     self._wait_for_stability()
-                    
                     return ActionResult(
                         success=True,
                         action="click",
@@ -146,10 +148,28 @@ class ActionExecutor:
                         duration_ms=(time.time() - start_time) * 1000,
                     )
                 except Exception as e:
+                    # If this is the last attempt, try Strategy 2 (JS Fallback)
                     if attempt == self.max_retries - 1:
-                        raise e
+                        break
                     time.sleep(self.RETRY_DELAY_MS / 1000)
-                    
+
+            # 3. Strategy 2: JavaScript Fallback (Self-healing)
+            try:
+                # Re-resolve one last time for JS click
+                element = self._resolve_element(element_node)
+                if element:
+                    self.driver.execute_script("arguments[0].click();", element)
+                    self._wait_for_stability()
+                    return ActionResult(
+                        success=True,
+                        action="click",
+                        target=element_node.selector,
+                        duration_ms=(time.time() - start_time) * 1000,
+                        metadata={"strategy": "js_fallback"}
+                    )
+            except Exception as js_error:
+                raise Exception(f"JS Click failed: {js_error}")
+
         except Exception as e:
             return ActionResult(
                 success=False,
@@ -158,52 +178,28 @@ class ActionExecutor:
                 duration_ms=(time.time() - start_time) * 1000,
                 error=str(e),
             )
-    
+
     def click_selector(self, selector: str) -> bool:
         """
-        Click an element by CSS selector.
-        
-        Args:
-            selector: CSS selector or shadow path
-        
-        Returns:
-            True if click succeeded
+        Click an element by CSS selector with self-healing.
         """
-        start_time = time.time()
-        
         try:
-            element = self._find_element(selector)
-            if element is None:
-                return False
+            # Mock an ElementNode for the main click logic
+            from dataclasses import dataclass
+            @dataclass
+            class MockNode:
+                selector: str
+                shadow_path: Optional[str] = None
             
-            self._scroll_into_view(element)
-            self._wait_for_stability()
-            
-            for attempt in range(self.max_retries):
-                try:
-                    element.click()
-                    self._wait_for_stability()
-                    return True
-                except Exception:
-                    if attempt == self.max_retries - 1:
-                        return False
-                    time.sleep(self.RETRY_DELAY_MS / 1000)
-            
-            return False
+            node = MockNode(selector=selector)
+            result = self.click(node)
+            return result.success
         except Exception:
             return False
-    
+
     def type_text(self, element_node: "ElementNode", text: str, clear_first: bool = True) -> ActionResult:
         """
-        Type text into an element.
-        
-        Args:
-            element_node: ElementNode from DOM mapper
-            text: Text to type
-            clear_first: Whether to clear the field first
-        
-        Returns:
-            ActionResult with success status
+        Type text into an element with self-healing.
         """
         start_time = time.time()
         
@@ -221,19 +217,43 @@ class ActionExecutor:
             self._scroll_into_view(element)
             self._wait_for_stability()
             
-            if clear_first:
-                element.clear()
-            
-            element.send_keys(text)
-            
-            self._wait_for_stability()
-            
-            return ActionResult(
-                success=True,
-                action="type",
-                target=element_node.selector,
-                duration_ms=(time.time() - start_time) * 1000,
-            )
+            # Retry loop for type
+            for attempt in range(self.max_retries):
+                try:
+                    if attempt > 0:
+                        element = self._resolve_element(element_node)
+                        if not element: break
+                        self._scroll_into_view(element)
+
+                    if clear_first:
+                        element.clear()
+                    
+                    element.send_keys(text)
+                    self._wait_for_stability()
+                    
+                    return ActionResult(
+                        success=True,
+                        action="type",
+                        target=element_node.selector,
+                        duration_ms=(time.time() - start_time) * 1000,
+                    )
+                except Exception as e:
+                    if attempt == self.max_retries - 1:
+                        # Final Attempt: try JS value setting as fallback
+                        try:
+                            self.driver.execute_script("arguments[0].value = arguments[1];", element, text)
+                            self._wait_for_stability()
+                            return ActionResult(
+                                success=True,
+                                action="type",
+                                target=element_node.selector,
+                                duration_ms=(time.time() - start_time) * 1000,
+                                metadata={"strategy": "js_fallback"}
+                            )
+                        except:
+                            raise e
+                    time.sleep(self.RETRY_DELAY_MS / 1000)
+
         except Exception as e:
             return ActionResult(
                 success=False,
@@ -242,47 +262,35 @@ class ActionExecutor:
                 duration_ms=(time.time() - start_time) * 1000,
                 error=str(e),
             )
-    
+
     def type_text_selector(self, selector: str, text: str, clear_first: bool = True, submit: bool = True) -> bool:
         """
-        Type text into an element by selector.
-        
-        Args:
-            selector: CSS selector
-            text: Text to type
-            clear_first: Clear the field before typing
-            submit: Press Enter after typing (for form fields)
+        Type text into an element by selector with self-healing.
         """
         try:
             from selenium.webdriver.common.keys import Keys
             
-            element = self._find_element(selector)
-            if element is None:
-                return False
+            # Use type_text for self-healing logic
+            from dataclasses import dataclass
+            @dataclass
+            class MockNode:
+                selector: str
+                shadow_path: Optional[str] = None
             
-            self._scroll_into_view(element)
-            self._wait_for_stability()
+            node = MockNode(selector=selector)
+            result = self.type_text(node, text, clear_first=clear_first)
             
-            # Click to focus
-            element.click()
+            if result.success and submit:
+                # Trigger Enter key separately for simplicity if using self-healing helper
+                element = self._find_element(selector)
+                if element:
+                    element.send_keys(Keys.RETURN)
+                    self._wait_for_stability()
             
-            if clear_first:
-                element.clear()
-            
-            element.send_keys(text)
-            
-            # Press Enter to submit (common pattern for todo apps, search boxes, etc.)
-            if submit:
-                element.send_keys(Keys.RETURN)
-            
-            self._wait_for_stability()
-            
-            return True
-        except Exception as e:
-            import warnings
-            warnings.warn(f"type_text_selector failed: {e}")
+            return result.success
+        except Exception:
             return False
-    
+
     def scroll_to(self, element_node: "ElementNode") -> ActionResult:
         """Scroll an element into view."""
         start_time = time.time()
@@ -314,7 +322,7 @@ class ActionExecutor:
                 duration_ms=(time.time() - start_time) * 1000,
                 error=str(e),
             )
-    
+
     def scroll_to_selector(self, selector: str) -> bool:
         """Scroll an element into view by selector."""
         try:
@@ -325,12 +333,12 @@ class ActionExecutor:
             return False
         except Exception:
             return False
-    
+
     def wait(self, seconds: float) -> bool:
         """Wait for a specified duration."""
         time.sleep(seconds)
         return True
-    
+
     def navigate(self, url: str) -> bool:
         """Navigate to a URL."""
         try:
@@ -339,66 +347,80 @@ class ActionExecutor:
             return True
         except Exception:
             return False
-    
-    def _resolve_element(self, element_node: "ElementNode") -> Optional["WebElement"]:
+
+    def _resolve_element(self, element_node: Any) -> Optional["WebElement"]:
         """
         Resolve an ElementNode to a Selenium WebElement.
         
         Handles both standard DOM and Shadow DOM elements.
         """
-        # Try shadow path first (if available)
-        if element_node.shadow_path and hasattr(self.driver, "find_shadow"):
+        # 1. Try shadow path first (if available)
+        if hasattr(element_node, "shadow_path") and element_node.shadow_path and hasattr(self.driver, "find_shadow"):
             try:
                 return self.driver.find_shadow(element_node.shadow_path, timeout=self.timeout)
             except Exception:
                 pass
         
-        # Fall back to CSS selector
+        # 2. Try selector (CSS)
         return self._find_element(element_node.selector)
-    
+
     def _find_element(self, selector: str) -> Optional["WebElement"]:
-        """Find an element by selector."""
+        """Find an element by selector with automatic wait."""
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+
         try:
             # Check if it's a shadow path (contains >>)
             if ">>" in selector and hasattr(self.driver, "find_shadow"):
                 return self.driver.find_shadow(selector, timeout=self.timeout)
             
-            # Standard CSS selector
-            return self.driver.find_element("css selector", selector)
+            # Standard CSS selector with smart wait
+            wait = WebDriverWait(self.driver, self.timeout / 3) # Faster timeout for find
+            return wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, selector)))
         except Exception:
             return None
-    
+
     def _scroll_into_view(self, element: "WebElement") -> None:
         """Scroll an element into the viewport."""
         try:
-            self.driver.execute_script(
-                "arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});",
-                element
-            )
-            time.sleep(0.3)  # Brief pause for scroll animation
+            # Check if element is already in view to avoid jarring jumps
+            in_view = self.driver.execute_script("""
+                var rect = arguments[0].getBoundingClientRect();
+                return (
+                    rect.top >= 0 &&
+                    rect.left >= 0 &&
+                    rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+                    rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+                );
+            """, element)
+            
+            if not in_view:
+                self.driver.execute_script(
+                    "arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});",
+                    element
+                )
+                time.sleep(0.3)
         except Exception:
             pass
-    
+
     def _wait_for_stability(self, timeout: float = 5.0) -> None:
         """
         Wait for page to reach a stable state.
-        
-        Uses waitless if available, otherwise falls back to simple heuristics.
         """
         if self._has_waitless:
             # Waitless handles stability automatically
             return
         
-        # Simple stability heuristics
         try:
-            # Wait for document ready
-            for _ in range(int(timeout * 2)):
-                ready_state = self.driver.execute_script("return document.readyState")
-                if ready_state == "complete":
-                    break
-                time.sleep(0.5)
+            from selenium.webdriver.support.ui import WebDriverWait
             
-            # Brief additional wait for JavaScript
+            # Wait for document ready
+            WebDriverWait(self.driver, timeout).until(
+                lambda d: d.execute_script("return document.readyState") == "complete"
+            )
+            
+            # Brief additional wait for animations
             time.sleep(0.2)
         except Exception:
             pass

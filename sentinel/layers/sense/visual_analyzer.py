@@ -102,6 +102,7 @@ class VisualAnalyzer:
         """
         self.driver = driver
         self._guard = self._init_visual_guard()
+        self.visual_agent = self._init_visual_agent()
     
     def _init_visual_guard(self):
         """Try to initialize visual-guard if available."""
@@ -110,6 +111,11 @@ class VisualAnalyzer:
             return VisualGuard(self.driver)
         except ImportError:
             return None
+
+    def _init_visual_agent(self):
+        """Initialize the VisualAgent bridge."""
+        from .visual_agent import VisualAgent
+        return VisualAgent()
     
     def is_blocked(self) -> Tuple[bool, str]:
         """

@@ -1,0 +1,85 @@
+{
+  "title": "Glow Test Report",
+  "generated_at": "2025-12-26 19:21:58",
+  "duration": 2.076955,
+  "summary": {
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "total": 2
+  },
+  "tests": [
+    {
+      "nodeid": "tests/unit/test_executor_healing.py::test_executor_js_fallback",
+      "outcome": "passed",
+      "duration": 1.0068287000012788,
+      "longrepr": null,
+      "sections": [],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/unit/test_executor_healing.py::test_executor_stale_recovery",
+      "outcome": "passed",
+      "duration": 1.0047205999999278,
+      "longrepr": null,
+      "sections": [],
+      "steps": [],
+      "screenshots": []
+    }
+  ],
+  "environment": {
+    "Python": "3.14.0",
+    "Platform": "win32"
+  },
+  "history": [
+    {
+      "id": 6,
+      "timestamp": "2025-12-26T19:21:58.615437",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 2.076955
+    },
+    {
+      "id": 5,
+      "timestamp": "2025-12-26T19:13:28.703074",
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0,
+      "duration": 0.323468
+    },
+    {
+      "id": 4,
+      "timestamp": "2025-12-26T19:12:37.139557",
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0,
+      "duration": 1.177505
+    },
+    {
+      "id": 3,
+      "timestamp": "2025-12-26T19:12:17.468605",
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0,
+      "duration": 1.190544
+    },
+    {
+      "id": 2,
+      "timestamp": "2025-12-26T19:02:39.235645",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 0.083422
+    },
+    {
+      "id": 1,
+      "timestamp": "2025-12-26T19:02:18.400662",
+      "passed": 2,
+      "failed": 1,
+      "skipped": 0,
+      "duration": 0.362964
+    }
+  ]
+}

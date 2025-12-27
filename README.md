@@ -1,5 +1,6 @@
 # The Sentinel 🛡️
 
+> **The Selenium of the AI Era**  
 > **Autonomous Web Testing Agent for "Untestable" Environments**
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
@@ -16,9 +17,10 @@ The Sentinel is a unified autonomous web testing framework that combines the pow
 |------------------------|--------------|
 | Write explicit selectors | Agent finds elements autonomously |
 | Hardcode wait times | Automatic UI stability detection |
-| Fail on DOM changes | Self-healing element discovery |
+| Fail on DOM changes | **Self-healing** element recovery |
 | Detect bot protection | Built-in stealth mode |
 | Manual debugging | Flight recorder with decision logs |
+| Cloud-only AI | **Local SLM support** (offline, privacy-first) |
 
 ---
 
@@ -100,11 +102,14 @@ The Sentinel is built as a **Master Orchestrator** that unifies specialized auto
 ├─────────────────────────────────────────────────────────────────┤
 │  👁️ SENSE LAYER              │  🦾 ACTION LAYER                │
 │  ├─ DOMMapper (lumos)        │  ├─ ActionExecutor (waitless)   │
-│  └─ VisualAnalyzer           │  ├─ Teleporter (selenium-teleport)│
-│     (visual-guard)           │  └─ Stealth (sb-stealth-wrapper)│
+│  ├─ VisualAnalyzer           │  │   └─ Self-Healing (JS fallback)│
+│  │   (visual-guard)          │  ├─ Teleporter (selenium-teleport)│
+│  └─ VisualAgent (VLM-ready)  │  └─ Stealth (sb-stealth-wrapper)│
 ├─────────────────────────────────────────────────────────────────┤
 │  🧪 VALIDATION LAYER         │  🧠 INTELLIGENCE LAYER          │
-│  └─ UIMutator (vandal)       │  └─ DecisionEngine              │
+│  └─ UIMutator (vandal)       │  ├─ HeuristicBrain              │
+│                              │  ├─ CloudBrain (OpenAI/Claude)  │
+│                              │  └─ LocalBrain (Phi-3, Mistral) │
 ├─────────────────────────────────────────────────────────────────┤
 │  📊 REPORTING: FlightRecorder (pytest-glow-report)             │
 └─────────────────────────────────────────────────────────────────┘
@@ -122,6 +127,7 @@ The Sentinel is built as a **Master Orchestrator** that unifies specialized auto
 | [project-vandal](https://pypi.org/project/project-vandal/) | UI mutation testing | Validation |
 | [pytest-glow-report](https://pypi.org/project/pytest-glow-report/) | Beautiful HTML reports | Reporting |
 | [pytest-mockllm](https://pypi.org/project/pytest-mockllm/) | LLM mocking for training | Intelligence |
+| [llama-cpp-python](https://pypi.org/project/llama-cpp-python/) | **Local SLM inference** | Intelligence |
 
 ---
 
@@ -222,16 +228,19 @@ mutator.revert_mutation(mutation)
 
 ## 📈 Roadmap
 
-### Current (v0.1.0)
+### Current (v0.2.0) ✅
 - ✅ Core Sense-Decide-Act loop
 - ✅ Shadow DOM support
 - ✅ Stealth mode
 - ✅ HTML report generation
 - ✅ Heuristic decision making
+- ✅ **Local SLM integration** (Phi-3, Mistral via llama-cpp-python)
+- ✅ **Self-healing actions** (JS fallback, stale element recovery)
+- ✅ **Vision foundation** (VisualAgent for VLM prep)
 
-### Next Phase (v0.2.0)
-- 🔄 Local SLM integration (phi-3-mini)
-- 🔄 Cloud LLM fallback (OpenAI, Anthropic)
+### Next Phase (v0.3.0)
+- 🔄 VLM integration (Moondream, LLaVA)
+- 🔄 Human-in-the-Loop mode
 - 🔄 Visual regression comparison
 - 🔄 Session replay from reports
 

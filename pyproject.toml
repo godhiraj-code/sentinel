@@ -38,6 +38,7 @@ dependencies = [
     "selenium>=4.0.0",
     "click>=8.0.0",
     "rich>=13.0.0",  # For beautiful CLI output
+    "psutil>=5.0.0", # For system resource profiling
     
     # Sense Layer
     "lumos-shadowdom>=0.2.0",

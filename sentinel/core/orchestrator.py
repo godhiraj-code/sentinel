@@ -62,6 +62,8 @@ class SentinelConfig:
     timeout: int = 30
     screenshot_on_step: bool = True  # Capture screenshot at each step
     report_dir: str = "./sentinel_reports"
+    brain_type: str = "auto"
+    model_name: Optional[str] = None
 
 
 class SentinelOrchestrator:
@@ -98,19 +100,15 @@ class SentinelOrchestrator:
         max_steps: int = 50,
         timeout: int = 30,
         report_dir: str = "./sentinel_reports",
+        brain_type: str = "auto",
+        model_name: Optional[str] = None,
     ):
         """
         Initialize the Sentinel orchestrator.
         
         Args:
-            url: Target URL to explore
-            goal: Natural language description of the goal
-            stealth_mode: Enable bot detection bypass
-            headless: Run browser in headless mode
-            training_mode: Use mock LLM for decision making (free)
-            max_steps: Maximum exploration steps before giving up
-            timeout: Timeout for each action in seconds
-            report_dir: Directory for generated reports
+            brain_type: Strategy for brain selection ("auto", "heuristic", "cloud", "local")
+            model_name: Specific model name/path (e.g. "gpt-4", "c:/models/phi3.gguf")
         """
         self.config = SentinelConfig(
             url=url,
@@ -121,6 +119,8 @@ class SentinelOrchestrator:
             max_steps=max_steps,
             timeout=timeout,
             report_dir=report_dir,
+            brain_type=brain_type,
+            model_name=model_name,
         )
         
         self._driver: Optional[WebDriverType] = None
@@ -173,7 +173,11 @@ class SentinelOrchestrator:
         self._dom_mapper = DOMMapper(self._driver)
         self._visual_analyzer = VisualAnalyzer(self._driver)
         self._executor = ActionExecutor(self._driver, timeout=self.config.timeout)
-        self._brain = DecisionEngine(mock_mode=self.config.training_mode)
+        self._brain = DecisionEngine(
+            mock_mode=self.config.training_mode,
+            brain_type=self.config.brain_type,
+            model_path=self.config.model_name
+        )
         self._recorder = FlightRecorder(output_dir=self.config.report_dir)
         
         self._initialized = True
