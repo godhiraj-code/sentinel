@@ -22,7 +22,7 @@ The Sentinel is a unified autonomous web testing framework that combines the pow
 | Fail on DOM changes | **Self-healing** element recovery |
 | Detect bot protection | Built-in stealth mode |
 | Manual debugging | Flight recorder with **multi-state screenshots** |
-| Goal Verification | **Rigorous assertion-based verification** |
+| Goal Verification | **Multi-step goal parsing** & rigorous assertion |
 | Cloud-only AI | **Local SLM support** (offline, privacy-first) |
 
 ---
@@ -81,7 +81,7 @@ from sentinel import SentinelOrchestrator
 # Create an autonomous agent
 agent = SentinelOrchestrator(
     url="https://demo.playwright.dev/todomvc/",
-    goal="Add 'Buy milk' to the todo list",
+    goal="Type 'Buy milk', then click 'Add', and finally verify 'Buy milk' exists",
     stealth_mode=True,
     max_steps=20
 )

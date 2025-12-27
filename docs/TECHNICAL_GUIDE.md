@@ -87,6 +87,10 @@ class SentinelOrchestrator:
 | `_extract_verify_text()` | Extract assertion targets from goal string |
 | `_text_visible_on_page()` | High-fidelity visibility check |
 
+### Goal Parser Architecture
+
+Located in `sentinel/core/goal_parser.py`, the `RegexGoalParser` decomposes raw goal strings into structured `GoalStep` instances. This allows the Orchestrator to track progress through a multi-action sequence rather than re-evaluating the entire goal state at every step.
+
 **State Management:**
 ```python
 self._driver          # WebDriver instance

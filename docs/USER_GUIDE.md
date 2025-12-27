@@ -147,7 +147,7 @@ from sentinel import SentinelOrchestrator
 # Create the agent
 agent = SentinelOrchestrator(
     url="https://demo.playwright.dev/todomvc/",
-    goal="Add 'Buy milk' to the todo list and verify 'Buy milk' exists",
+    goal="Type 'Buy milk' then type 'Walk dog' then verify 'Walk dog' appears",
     max_steps=10,  # Limit exploration steps
     stability_mode="relaxed"  # Optional: customize waitless behavior
 )
