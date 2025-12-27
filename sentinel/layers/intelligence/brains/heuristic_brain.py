@@ -1,6 +1,9 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
 import re
 from .base import BrainInterface, Decision
+
+if TYPE_CHECKING:
+    from sentinel.core.goal_parser import GoalStep, ParsedGoal
 
 
 class HeuristicBrain(BrainInterface):
@@ -11,25 +14,21 @@ class HeuristicBrain(BrainInterface):
     
     def decide(
         self,
-        goal: str,
+        goal: "GoalStep",
         world_state: List[Any],
-        history: List[Decision]
+        history: List[Decision],
+        full_goal: Optional["ParsedGoal"] = None
     ) -> Decision:
         """
-        Make a decision using keyword matching heuristics.
+        Make a decision using structured goal information.
         """
-        goal_lower = goal.lower()
-        
-        # Extract action keywords from goal
-        action_keywords = self._extract_goal_keywords(goal_lower)
-        
-        # Score each element based on relevance to goal
+        # Score each element based on relevance to goal step
         scored_elements = []
         for elem in world_state:
             if not elem.is_visible or not elem.is_interactive:
                 continue
             
-            score = self._score_element(elem, action_keywords, history)
+            score = self._score_element(elem, goal, history)
             if score > 0:
                 scored_elements.append((elem, score))
         
@@ -37,6 +36,16 @@ class HeuristicBrain(BrainInterface):
         scored_elements.sort(key=lambda x: x[1], reverse=True)
         
         if not scored_elements:
+            # For verify steps, if nothing found, it's just not done yet
+            if goal.action == "verify":
+                return Decision(
+                    action="wait",
+                    target="body",
+                    reasoning=f"Waiting for verification target: {goal.value}",
+                    confidence=0.5,
+                    metadata={}
+                )
+
             # No matching elements - try scrolling or waiting
             return Decision(
                 action="scroll",
@@ -49,176 +58,86 @@ class HeuristicBrain(BrainInterface):
         # Pick the best match
         best_elem, best_score = scored_elements[0]
         
-        # Determine action type
-        action = self._determine_action(best_elem, goal_lower)
-        
-        # Check if this might complete the goal
-        if best_score > 0.8 and action == "click":
-            # High confidence match
-            confidence = min(0.9, best_score)
-        else:
-            confidence = best_score * 0.7
-        
+        # Determine action type (use step action as primary hint)
+        action = goal.action
+        if action == "verify":
+            # If we are in a 'verify' step, we don't necessarily click.
+            # However, the brain might Decide to click something to GET to the verify state?
+            # For now, let's assume if verify matches, the orchestrator handles completion.
+            return Decision(
+                action="wait",
+                target="body",
+                reasoning=f"Verification target '{goal.value}' potentially found",
+                confidence=0.9,
+                metadata={}
+            )
+
         # Build metadata for type actions
         metadata = {}
         if action == "type":
-            # Extract text to type from goal
-            metadata["text"] = self._extract_type_text(goal_lower)
+            metadata["text"] = goal.value
         
         return Decision(
             action=action,
             target=best_elem.selector or best_elem.shadow_path or "",
-            reasoning=f"Matched '{best_elem.text[:30]}' with goal keywords",
-            confidence=confidence,
+            reasoning=f"Matched '{best_elem.text[:30]}' with goal target {goal.target}",
+            confidence=best_score,
             metadata=metadata,
         )
-    
-    def _extract_goal_keywords(self, goal: str) -> Dict[str, List[str]]:
-        """Extract relevant keywords from the goal."""
-        keywords = {
-            "action": [],
-            "target": [],
-            "value": [],
-        }
-        
-        # Action keywords
-        if "click" in goal:
-            keywords["action"].append("click")
-        if "type" in goal or "enter" in goal or "input" in goal:
-            keywords["action"].append("type")
-        if "submit" in goal:
-            keywords["action"].append("submit")
-            keywords["action"].append("click")
-        if "select" in goal:
-            keywords["action"].append("select")
-        if "add" in goal:
-            keywords["action"].append("add")
-        if "remove" in goal or "delete" in goal:
-            keywords["action"].append("remove")
-        
-        # Target keywords - extract nouns/phrases
-        target_text = goal
-        for action_word in ["click", "type", "enter", "input", "submit", "select", "add", "remove", "delete", "the", "a", "an", "to", "on", "in"]:
-            target_text = target_text.replace(action_word, " ")
-        
-        # Split into words and filter
-        words = [w.strip() for w in target_text.split() if len(w.strip()) > 2]
-        keywords["target"] = words
-        
-        # Value extraction (for type actions)
-        quoted = re.findall(r"['\"]([^'\"]+)['\"]", goal)
-        keywords["value"] = quoted
-        
-        # Class name extraction (e.g., "with class blog-nudge-button")
-        class_match = re.search(r"class[:\s]+([a-zA-Z0-9_-]+)", goal)
-        if class_match:
-            keywords["class"] = class_match.group(1)
-        else:
-            keywords["class"] = None
-        
-        return keywords
     
     def _score_element(
         self,
         elem: Any,
-        keywords: Dict[str, List[str]],
+        step: "GoalStep",
         history: List[Decision],
     ) -> float:
-        """Score an element based on relevance to goal keywords."""
+        """Score an element based on relevance to structured GoalStep."""
         score = 0.0
         tag = elem.tag.lower() if elem.tag else ""
+        target = step.target
         
-        # Special handling for input fields when goal mentions adding/typing
-        has_add_action = any(a in keywords["action"] for a in ["add", "type", "enter"])
-        has_value_to_type = len(keywords["value"]) > 0
-        
-        if has_add_action and has_value_to_type:
-            if tag in ["input", "textarea"]:
-                elem_type = elem.attributes.get("type", "text").lower()
-                if elem_type in ["text", "search", "email", "password", ""]:
-                    score += 0.7
-                placeholder = elem.attributes.get("placeholder", "").lower()
-                if placeholder:
-                    for val in keywords["value"]:
-                        if any(word in placeholder for word in ["todo", "add", "new", "item", "task"]):
-                            score += 0.4
-        
-        # Text matching
-        elem_text = (elem.text or "").lower()
-        for keyword in keywords["target"]:
-            if keyword in elem_text:
-                score += 0.4
-            elif any(keyword in word for word in elem_text.split()):
-                score += 0.2
-        
-        # HIGH PRIORITY: Explicit class name match from goal
-        # If user said "class blog-nudge-button", prioritize exact matches
-        explicit_class = keywords.get("class")
-        if explicit_class:
-            elem_classes = elem.attributes.get("class", "")
-            if explicit_class in elem_classes:
-                score += 0.9  # Very high boost for exact class match
-        
-        # Attribute matching
-        important_attrs = ["id", "class", "name", "placeholder", "aria-label", "title"]
-        for attr_key in important_attrs:
-            attr_val = elem.attributes.get(attr_key, "")
-            if not attr_val:
-                continue
-            attr_val_lower = attr_val.lower()
-            for keyword in keywords["target"]:
-                if keyword in attr_val_lower:
-                    score += 0.3
-            for val in keywords["value"]:
-                if val.lower() in attr_val_lower:
-                    score += 0.2
-        
-        # Tag-based scoring
-        if "click" in keywords["action"] or "submit" in keywords["action"]:
+        # 1. Action compatibility boost
+        if step.action == "click":
             if tag in ["button", "a"]:
                 score += 0.2
             if elem.attributes.get("type") in ["submit", "button"]:
                 score += 0.2
-        
-        if "type" in keywords["action"] or "add" in keywords["action"]:
+        elif step.action == "type":
             if tag in ["input", "textarea"]:
                 score += 0.3
         
-        # Penalize already-clicked elements
+        # 2. Text matching (highest priority)
+        if target.text:
+            elem_text = (elem.text or "").lower()
+            target_text = target.text.lower()
+            if target_text in elem_text:
+                score += 0.5
+            
+            # Check attributes for text match as well
+            for attr in ["aria-label", "title", "placeholder", "name"]:
+                attr_val = elem.attributes.get(attr, "").lower()
+                if attr_val and target_text in attr_val:
+                    score += 0.4
+
+        # 3. Explicit ID match
+        if target.id and elem.id == target.id:
+            score += 0.9
+
+        # 4. Explicit Class match
+        if target.css_class:
+            elem_classes = elem.attributes.get("class", "")
+            if target.css_class in elem_classes:
+                score += 0.8
+
+        # 5. Role match
+        if target.role:
+            elem_role = elem.attributes.get("role", "").lower()
+            if target.role.lower() == elem_role:
+                score += 0.4
+
+        # Penalize already-clicked elements to avoid loops
         for past_decision in history[-5:]:
             if past_decision.target == elem.selector:
                 score -= 0.5
         
         return max(0, min(1.0, score))
-    
-    def _determine_action(self, elem: Any, goal: str) -> str:
-        """Determine what action to take on an element."""
-        tag = elem.tag.lower()
-        elem_type = elem.attributes.get("type", "").lower()
-        
-        # Input fields -> type
-        if tag in ["input", "textarea"]:
-            if elem_type not in ["submit", "button", "checkbox", "radio"]:
-                return "type"
-        
-        # Default to click for interactive elements
-        return "click"
-    
-    def _extract_type_text(self, goal: str) -> str:
-        """Extract text to type from the goal."""
-        quoted = re.findall(r"['\"]([^'\"]+)['\"]", goal)
-        if quoted:
-            return quoted[0]
-        
-        patterns = [
-            r"type\s+(.+?)(?:\s+in|\s+into|\s*$)",
-            r"enter\s+(.+?)(?:\s+in|\s+into|\s*$)",
-            r"input\s+(.+?)(?:\s+in|\s+into|\s*$)",
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, goal, re.IGNORECASE)
-            if match:
-                return match.group(1).strip()
-        
-        return ""

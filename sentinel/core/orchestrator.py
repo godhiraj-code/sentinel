@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 from sentinel.core.driver_factory import create_driver, StealthDriverManager, WebDriverType
+from sentinel.core.goal_parser import RegexGoalParser, ParsedGoal, GoalStep
 from sentinel.layers.sense import DOMMapper, VisualAnalyzer
 from sentinel.layers.action import ActionExecutor
 from sentinel.layers.intelligence import DecisionEngine, Decision
@@ -150,6 +151,8 @@ class SentinelOrchestrator:
         self._recorder: Optional[FlightRecorder] = None
         
         self._initialized = False
+        self._parser = RegexGoalParser()
+        self._parsed_goal: Optional[ParsedGoal] = None
     
     @property
     def driver(self) -> WebDriverType:
@@ -215,6 +218,10 @@ class SentinelOrchestrator:
             decisions made, and report path.
         """
         self._initialize()
+        self._parsed_goal = self._parser.parse(self.config.goal)
+        self._recorder.log_info(f"Goal parsed into {len(self._parsed_goal.steps)} steps")
+        for i, step in enumerate(self._parsed_goal.steps):
+            self._recorder.log_info(f"  Step {i+1}: {step}")
         
         start_time = datetime.now()
         decisions: List[Decision] = []
@@ -252,10 +259,16 @@ class SentinelOrchestrator:
                     continue
                 
                 # 2. DECIDE - Choose next action
+                current_step = self._parsed_goal.current_step
+                if not current_step:
+                     self._recorder.log_info("All goal steps completed")
+                     break
+
                 decision = self._brain.decide(
-                    goal=self.config.goal,
+                    goal=current_step,
                     world_state=world_state,
                     history=decisions,
+                    full_goal=self._parsed_goal
                 )
                 decisions.append(decision)
                 self._recorder.log_decision(step, decision)
@@ -268,10 +281,14 @@ class SentinelOrchestrator:
                 if self.config.screenshot_on_step:
                     self._recorder.capture_screenshot(f"step_{step}_after_action", driver=self._driver)
                 
-                # Check if goal is achieved
+                # Check if current goal step is achieved
                 if self._goal_achieved(decisions):
-                    report_path = self._recorder.generate_report()
-                    return ExecutionResult(
+                    self._recorder.log_info(f"Verified step: {current_step}")
+                    self._parsed_goal.next_step()
+                    
+                    if self._parsed_goal.is_completed:
+                        report_path = self._recorder.generate_report()
+                        return ExecutionResult(
                         success=True,
                         goal=self.config.goal,
                         url=self.config.url,

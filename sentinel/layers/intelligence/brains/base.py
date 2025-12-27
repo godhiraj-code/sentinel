@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from dataclasses import dataclass
+
+if TYPE_CHECKING:
+    from sentinel.core.goal_parser import GoalStep, ParsedGoal
 
 @dataclass
 class Decision:
@@ -26,17 +29,19 @@ class BrainInterface(ABC):
     @abstractmethod
     def decide(
         self,
-        goal: str,
+        goal: "GoalStep",
         world_state: List[Any],
-        history: List[Decision]
+        history: List[Decision],
+        full_goal: Optional["ParsedGoal"] = None
     ) -> Decision:
         """
         Make a decision based on the goal and world state.
         
         Args:
-            goal: The user's natural language goal.
+            goal: The structured current step to achieve.
             world_state: List of ElementNodes representing the current page.
             history: List of previous decisions.
+            full_goal: The complete parsed goal context.
             
         Returns:
             Decision: The logical next step.
