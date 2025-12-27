@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `describe_state()`: Analyze screenshots and describe UI
   - `find_element()`: Locate elements by natural language description
   - `verify_action()`: Compare before/after screenshots to verify action success
+- **Session Replay**: New `sentinel replay` command to view and re-execute past exploration sessions.
+  - `--rerun`: Re-execute actions on a live browser
+  - `--step`: Pause after each step for inspection
 
 ### Updated
 - **Core Dependencies**: Updated `sb-stealth-wrapper` (0.3.0), `waitless` (0.3.2), and `selenium-chatbot-test` (0.2.0).

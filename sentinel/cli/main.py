@@ -247,7 +247,92 @@ def version():
         from sentinel import __version__
         console.print(f"The Sentinel v{__version__}")
     except ImportError:
-        console.print("The Sentinel v0.1.0")
+        console.print("The Sentinel v0.2.0")
+
+
+@cli.command()
+@click.argument('report_dir')
+@click.option('--step', is_flag=True, help='Pause after each step for inspection')
+@click.option('--rerun', is_flag=True, help='Re-execute actions on a live browser')
+def replay(report_dir, step, rerun):
+    """
+    Replay a past exploration session.
+    
+    View the decision timeline and optionally re-execute actions
+    on a live browser.
+    
+    \\b
+    Examples:
+    
+        sentinel replay ./sentinel_reports/20251227_074249
+        
+        sentinel replay ./sentinel_reports/20251227_074249 --rerun
+        
+        sentinel replay ./sentinel_reports/20251227_074249 --rerun --step
+    """
+    console.print(Panel.fit(
+        f"[bold magenta]🎬 Session Replay[/bold magenta]\n"
+        f"[dim]Replaying: {report_dir}[/dim]",
+        border_style="magenta"
+    ))
+    console.print()
+    
+    try:
+        from sentinel.reporters.session_replayer import SessionReplayer
+        
+        replayer = SessionReplayer(report_dir)
+        session = replayer.load()
+        
+        # Print summary table
+        table = Table(show_header=False, box=None)
+        table.add_row("[bold]Run ID:[/bold]", session.run_id)
+        table.add_row("[bold]URL:[/bold]", session.url or "N/A")
+        table.add_row("[bold]Goal:[/bold]", session.goal)
+        table.add_row("[bold]Duration:[/bold]", f"{session.duration_seconds:.2f}s")
+        table.add_row("[bold]Steps:[/bold]", str(len(session.steps)))
+        table.add_row("[bold]Decisions:[/bold]", str(session.total_decisions))
+        table.add_row("[bold]Success:[/bold]", "[green]Yes[/green]" if session.success else "[red]No[/red]")
+        console.print(table)
+        console.print()
+        
+        # Print decision timeline
+        console.print("[bold]📝 Decision Timeline:[/bold]")
+        for i, decision in enumerate(replayer.get_decisions(), 1):
+            conf = decision.confidence
+            conf_bar = "█" * int(conf * 10) + "░" * (10 - int(conf * 10))
+            target = decision.target[:35] + "..." if decision.target and len(decision.target) > 35 else (decision.target or "N/A")
+            console.print(f"  {i}. [{conf_bar}] [cyan]{decision.action.upper()}[/cyan] → {target}")
+            if decision.reasoning:
+                console.print(f"     [dim]└─ {decision.reasoning[:50]}...[/dim]")
+        
+        console.print()
+        
+        if rerun:
+            console.print("[bold yellow]🔄 Re-executing session on browser...[/bold yellow]")
+            console.print()
+            
+            from sentinel.core.driver_factory import create_driver
+            
+            driver = create_driver(headless=False)
+            try:
+                def on_step(step_obj, success):
+                    status = "[green]✅[/green]" if success else "[red]❌[/red]"
+                    console.print(f"  {status} {step_obj.action} → {step_obj.target[:40] if step_obj.target else 'N/A'}")
+                
+                results = replayer.replay_on_browser(driver, step_mode=step, callback=on_step)
+                
+                successes = sum(1 for _, s in results if s)
+                console.print()
+                console.print(f"[bold]Replay complete: {successes}/{len(results)} actions succeeded[/bold]")
+            finally:
+                driver.quit()
+        else:
+            console.print("[dim]Use --rerun to re-execute actions on a browser[/dim]")
+        
+    except FileNotFoundError as e:
+        console.print(f"[red]❌ Error: {e}[/red]")
+    except Exception as e:
+        console.print(f"[red]❌ Error: {e}[/red]")
 
 
 def main():
