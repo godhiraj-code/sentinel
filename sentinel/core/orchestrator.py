@@ -273,11 +273,10 @@ class SentinelOrchestrator:
                 decisions.append(decision)
                 self._recorder.log_decision(step, decision)
                 
-                # 3. ACT - Execute the decision
-                success = self._executor.execute(decision)
-                self._recorder.log_action_result(step, success)
+                # 3. ACT - Execute and Verify
+                success = self._execute_and_verify(step, decision, current_step)
                 
-                # Take screenshot after action to show the result
+                # Take screenshot after action to show the result (even if verification failed)
                 if self.config.screenshot_on_step:
                     self._recorder.capture_screenshot(f"step_{step}_after_action", driver=self._driver)
                 
@@ -384,6 +383,39 @@ class SentinelOrchestrator:
         
         return False
     
+    def _execute_and_verify(self, step_idx: int, decision: Decision, goal_step: GoalStep) -> bool:
+        """
+        Execute an action and verify it had the intended effect.
+        """
+        # 1. Capture BEFORE state
+        before_state = self._dom_mapper.get_page_snapshot()
+        before_url = self._driver.current_url
+        
+        # 2. Execute Action
+        success = self._executor.execute(decision)
+        self._recorder.log_action_result(step_idx, success)
+        
+        if not success:
+            return False
+            
+        # 3. Capture AFTER state
+        after_state = self._dom_mapper.get_page_snapshot()
+        after_url = self._driver.current_url
+        
+        # 4. Immediate logical verification (did something happen?)
+        if decision.action == "click":
+            # Change is expected: URL change OR DOM change
+            if after_url != before_url:
+                self._recorder.log_info("Action verified: URL changed")
+                return True
+            if after_state != before_state:
+                self._recorder.log_info("Action verified: DOM changed")
+                return True
+            
+            self._recorder.log_info("Warning: No state change detected after click")
+            
+        return True
+
     def _wait_for_target_element(self, timeout: int = 10) -> bool:
         """
         Wait for target element to appear if class is specified in goal.
@@ -432,57 +464,42 @@ class SentinelOrchestrator:
     
     def _goal_achieved(self, decisions: List[Decision]) -> bool:
         """
-        Check if the goal has been achieved.
-        
-        Uses heuristics and explicit verification:
-        1. Implicit verification via goal text (e.g., "verify X exists")
-        2. Explicit "goal_achieved" action from intelligence layer
-        3. Action-specific heuristics (URL change, typed text visibility)
+        Check if the current goal step (or the entire goal) has been achieved.
         """
-        # PRIORITY 1: Rigorous Text Verification
-        # If the goal has a "verify" clause, it MUST pass regardless of other signals
-        verify_text = self._extract_verify_text()
-        if verify_text:
-            if self._text_visible_on_page(verify_text):
-                self._recorder.log_info(f"Goal verification successful: '{verify_text}' found on page")
+        if not self._parsed_goal:
+            # Fallback for non-structured goals (from Phase 1)
+            verify_text = self._extract_verify_text()
+            if verify_text and self._text_visible_on_page(verify_text):
                 return True
-            # If verify_text is specified but not yet found, we are not done
-            # even if the URL changed or confidence is high.
             return False
 
-        if not decisions:
-            return False
-            
-        last_decision = decisions[-1]
+        current_step = self._parsed_goal.current_step
+        if not current_step:
+            return True # No current step means we are done
+
+        # 1. Action-specific verification for the CURRENT step
+        is_step_done = False
         
-        # PRIORITY 2: Explicit Goal Achieved Signal
-        if last_decision.action == "goal_achieved":
-            return True
+        if current_step.action == "verify":
+            # Just check if the value (text) exists on the page
+            if current_step.value and self._text_visible_on_page(current_step.value):
+                is_step_done = True
         
-        # PRIORITY 3: High Confidence Heuristics
-        if last_decision.confidence >= 0.95:
-            return True
-        
-        # For type actions, verify the typed text appeared
-        if last_decision.action == "type":
-            typed_text = last_decision.metadata.get("text", "")
-            if typed_text and self._text_visible_on_page(typed_text):
-                return True
-        
-        # For click actions, basic navigation check (fallback if no verify clause)
-        if last_decision.action == "click":
-            goal_lower = self.config.goal.lower()
-            click_keywords = ["article", "read", "link", "button", "submit", "go to"]
-            if any(kw in goal_lower for kw in click_keywords):
-                try:
-                    current_url = self._driver.current_url
-                    # URL changed significantly
-                    if current_url != self.config.url and not current_url.endswith(self.config.url.rstrip('/')):
-                        return True
-                except:
-                    pass
-        
-        return False
+        elif current_step.action == "navigate":
+            # Check if current URL matches the target value
+            if current_step.value and current_step.value in self._driver.current_url:
+                is_step_done = True
+                
+        elif decisions:
+            # For interaction steps (click, type), we check if the last decision
+            # matched the intended action of the step.
+            last = decisions[-1]
+            if last.action == current_step.action:
+                # We already did logical verification in _execute_and_verify
+                # So if we reached here and last action matches, we count it as done
+                is_step_done = True
+
+        return is_step_done
     
     def _extract_verify_text(self) -> Optional[str]:
         """

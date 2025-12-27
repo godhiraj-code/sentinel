@@ -333,3 +333,22 @@ class DOMMapper:
             node for node in world_state
             if node.attributes.get("role") == role or node.tag == role
         ]
+    def get_page_snapshot(self) -> str:
+        """
+        Produce a lightweight hash of the current page state.
+        Uses URL + interactive element count + first 10 element texts.
+        Used for fast before/after comparison.
+        """
+        try:
+            url = self.driver.current_url
+            elements = self.get_world_state()
+            
+            # Combine signals
+            signals = [url, str(len(elements))]
+            for elem in elements[:10]:
+                signals.append(f"{elem.tag}:{elem.text[:20]}")
+            
+            combined = "|".join(signals)
+            return hashlib.md5(combined.encode()).hexdigest()
+        except Exception:
+            return "unknown_state"

@@ -135,9 +135,14 @@ class HeuristicBrain(BrainInterface):
             if target.role.lower() == elem_role:
                 score += 0.4
 
-        # Penalize already-clicked elements to avoid loops
-        for past_decision in history[-5:]:
-            if past_decision.target == elem.selector:
-                score -= 0.5
+        # Enhanced loop prevention:
+        # Penalize elements that have been targeted recently.
+        # The penalty is higher if the same element was targeted multiple times.
+        if history:
+            recent_targets = [d.target for d in history[-10:] if d.target]
+            target_count = recent_targets.count(elem.selector)
+            if target_count > 0:
+                # Significant penalty to force trying something else
+                score -= (0.4 + (target_count * 0.1))
         
         return max(0, min(1.0, score))
