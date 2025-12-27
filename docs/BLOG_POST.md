@@ -105,7 +105,7 @@ Given the goal and current world state, the agent selects the best action:
 - **History Awareness**: Don't click the same thing twice in a row
 - **Confidence Scoring**: How sure are we this is the right action?
 
-*Future: Local SLM (phi-3-mini) for smarter decisions*
+*Powered by: HeuristicBrain, LocalBrain (Phi-3, Mistral), CloudBrain (OpenAI, Claude)*
 
 ### 3. ACT: Reliable Execution
 
@@ -113,7 +113,7 @@ Actions are executed with built-in resilience:
 
 - **Automatic Scrolling**: Element not visible? Scroll to it.
 - **Stability Waits**: Wait for UI to settle before clicking.
-- **Retry Logic**: Stale element? Find it again and retry.
+- **Self-Healing**: Stale element? Re-resolve and retry. Intercepted click? JS fallback.
 - **Stealth Mode**: Bypass bot detection automatically.
 
 *Powered by: waitless, sb-stealth-wrapper, selenium-teleport*
@@ -171,11 +171,12 @@ Instead of users learning 10 APIs, they learn one: **set a goal and run**.
 
 ### From Tools to Intelligence
 
-This is also my first step into **agentic AI for testing**. The current version uses heuristics, but the architecture is ready for:
+This is also my first step into **agentic AI for testing**. v0.2.0 already includes:
 
-- **Local SLMs** (phi-3-mini, llama-3-8b) for smarter decisions
-- **Vision models** for visual understanding
-- **Self-healing** when tests break
+- **Local SLMs** (Phi-3, Mistral via llama-cpp-python) for privacy-first decisions
+- **Vision models** (Moondream2) for screenshot-based element detection
+- **Self-healing** when elements become stale or clicks are intercepted
+- **Session Replay** to debug and re-execute past explorations
 
 ---
 
@@ -254,12 +255,13 @@ Autonomous exploration adds overhead. Each step includes:
 
 The current decision engine uses keyword matching. It's not as smart as a human (or an LLM). Complex goals may require breaking down into steps.
 
-### 3. Early Stage
+### 3. Growing Fast
 
-This is v0.1.0. Expect rough edges:
-- Some edge cases not handled
-- Limited action types
-- Documentation still growing
+This is v0.2.0. We've already delivered:
+- ✅ Local SLM integration
+- ✅ Self-healing actions
+- ✅ Vision foundation (VLM)
+- ✅ Session Replay
 
 ---
 
@@ -279,25 +281,21 @@ This is v0.1.0. Expect rough edges:
 
 ---
 
-## The Roadmap: What's Next
+## The Roadmap: What's Done and What's Next
 
-### Phase 1: LLM Integration (Q1 2025)
-- Local SLM (phi-3-mini via llama-cpp-python)
-- Cloud API fallback (OpenAI, Anthropic)
-- `pytest-mockllm` for cost-free testing
+### ✅ Completed (v0.2.0)
+- **Local SLM Integration**: Phi-3, Mistral via llama-cpp-python
+- **Self-Healing Actions**: JS fallback, stale element recovery
+- **Vision Foundation**: VisualAgent with Moondream2, OpenAI, mock backends
+- **Session Replay**: View and re-execute past exploration sessions
 
-### Phase 2: Visual Intelligence (Q2 2025)
-- Screenshot-based element detection
+### 🔄 In Progress (v0.3.0)
+- Human-in-the-Loop mode for low-confidence decisions
 - Visual regression comparison
-- Layout understanding
-
-### Phase 3: Self-Healing (Q3 2025)
-- Learn from failures
-- Automatic selector recovery
 - Test generation from exploration
 
-### Phase 4: Multi-Agent (Future)
-- Parallel exploration
+### 🔮 Future
+- Multi-Agent parallel exploration
 - Distributed testing
 - Shared knowledge graph
 
@@ -345,6 +343,11 @@ agent = SentinelOrchestrator(
 
 result = agent.run()
 print(f"Success: {result.success} in {result.steps} steps")
+
+# Replay a past session
+from sentinel.reporters.session_replayer import SessionReplayer
+replayer = SessionReplayer("./sentinel_reports/20251227_074249")
+replayer.print_summary()
 ```
 
 ---

@@ -31,10 +31,12 @@ The Sentinel follows a **Layered Agent Architecture** with clear separation of c
 ├───────────────┬───────────────┬───────────────┬─────────────────────────┤
 │  SENSE LAYER  │  DECIDE LAYER │  ACT LAYER    │  VALIDATE LAYER         │
 │  - DOMMapper  │  - Decision   │  - Executor   │  - UIMutator            │
-│  - Visual     │    Engine     │  - Teleporter │                         │
-│    Analyzer   │               │  - Stealth    │                         │
+│  - Visual     │    Engine     │    (Self-Heal)│                         │
+│    Analyzer   │  - Heuristic  │  - Teleporter │                         │
+│  - Visual     │  - Local SLM  │  - Stealth    │                         │
+│    Agent(VLM) │  - Cloud LLM  │               │                         │
 ├───────────────┴───────────────┴───────────────┴─────────────────────────┤
-│                         FlightRecorder                                   │
+│                 FlightRecorder + SessionReplayer                         │
 │                       (Cross-cutting Layer)                              │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                        Driver Factory                                    │
@@ -285,18 +287,20 @@ def _score_element(self, element, goal_keywords):
     return min(score, 1.0)
 ```
 
-**Future LLM Integration:**
+**Brain Implementations (v0.2.0):**
+
 ```python
-def _decide_with_llm(self, goal, world_state, history):
-    """
-    Placeholder for LLM-based decision making.
-    
-    Will use:
-    - Local SLM (phi-3-mini via llama-cpp-python)
-    - Or cloud API (OpenAI, Anthropic)
-    - With pytest-mockllm for testing
-    """
-    pass
+# HeuristicBrain - Fast, no external dependencies
+from sentinel.layers.intelligence.brains import HeuristicBrain
+brain = HeuristicBrain()
+
+# LocalBrain - Privacy-first, local SLM
+from sentinel.layers.intelligence.brains import LocalBrain
+brain = LocalBrain(model_path="phi-3-mini.gguf")
+
+# CloudBrain - Maximum intelligence
+from sentinel.layers.intelligence.brains import CloudBrain
+brain = CloudBrain(provider="openai", model="gpt-4")
 ```
 
 ### Action Layer
@@ -335,11 +339,11 @@ def _execute_with_retry(self, action_fn, max_retries=3):
         try:
             return action_fn()
         except StaleElementReferenceException:
-            # Re-find element and retry
+            # Self-healing: Re-find element and retry
             pass
         except ElementClickInterceptedException:
-            # Scroll and retry
-            pass
+            # Self-healing: Try JavaScript fallback
+            self.driver.execute_script("arguments[0].click();", element)
     return False
 ```
 
@@ -433,6 +437,50 @@ def generate_report(self) -> str:
        - Error details
     3. Save JSON log for programmatic access
     """
+```
+
+#### SessionReplayer
+
+**Location:** `sentinel/reporters/session_replayer.py`
+
+Replays and debugs past exploration sessions.
+
+**Key Classes:**
+```python
+@dataclass
+class ReplayStep:
+    step_number: int
+    timestamp: datetime
+    event_type: str
+    message: str
+    data: Dict[str, Any]
+    screenshot_path: Optional[str]
+
+@dataclass  
+class ReplaySession:
+    run_id: str
+    url: str
+    goal: str
+    steps: List[ReplayStep]
+    success: bool
+```
+
+**Usage:**
+```python
+from sentinel.reporters.session_replayer import SessionReplayer
+
+replayer = SessionReplayer("./sentinel_reports/20251227_074249")
+session = replayer.load()
+
+# View summary
+replayer.print_summary()
+
+# Iterate decisions
+for decision in replayer.get_decisions():
+    print(f"{decision.action} -> {decision.target}")
+
+# Re-execute on browser
+results = replayer.replay_on_browser(driver, step_mode=True)
 ```
 
 ---
@@ -701,22 +749,23 @@ def test_full_exploration():
 
 ---
 
-## Next Development Phases
+## Development Phases
 
-### Phase 1: LLM Integration
-- Local SLM (phi-3-mini)
-- Cloud API fallback
-- pytest-mockllm for testing
+### ✅ Completed (v0.2.0)
+- Local SLM Integration (Phi-3, Mistral via llama-cpp-python)
+- Self-Healing Actions (JS fallback, stale element recovery)
+- Vision Foundation (VisualAgent with Moondream2, OpenAI, mock)
+- Session Replay (view and re-execute past sessions)
 
-### Phase 2: Visual Regression
-- Screenshot comparison
-- Layout drift detection
-- visual-guard integration
-
-### Phase 3: Self-Healing
-- Selector recovery
+### 🔄 In Progress (v0.3.0)
+- Human-in-the-Loop mode
+- Visual regression comparison
 - Test generation from exploration
-- Failure pattern learning
+
+### 🔮 Future
+- Multi-Agent parallel exploration
+- Distributed testing
+- Shared knowledge graph
 
 ---
 

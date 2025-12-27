@@ -60,6 +60,12 @@ sentinel explore "https://example.com" "Submit the form" --headless --max-steps 
 
 # Run UI mutation stress testing
 sentinel stress "https://example.com" --mutations 10
+
+# Replay a past session
+sentinel replay ./sentinel_reports/20251227_074249
+
+# Re-run past session on live browser
+sentinel replay ./sentinel_reports/20251227_074249 --rerun
 ```
 
 > **💡 Tip**: Use `--max-steps` to control how many actions the agent takes before giving up. Lower values (5-10) are good for simple goals, higher values (20-50) for complex multi-step flows.
@@ -87,6 +93,26 @@ else:
 
 # View the decision report
 print(f"Report: {result.report_path}")
+```
+
+### Session Replay
+
+```python
+from sentinel.reporters.session_replayer import SessionReplayer
+
+# Load a past session
+replayer = SessionReplayer("./sentinel_reports/20251227_074249")
+session = replayer.load()
+
+# Print summary
+replayer.print_summary()
+
+# Iterate through decisions
+for decision in replayer.get_decisions():
+    print(f"{decision.action} → {decision.target}")
+
+# Re-execute on browser
+results = replayer.replay_on_browser(driver)
 ```
 
 ---
@@ -158,7 +184,15 @@ Options:
   --headless/--headed       Run in headless mode (default: headed)
   --training                Use mock LLM (free mode)
   --max-steps INTEGER       Maximum exploration steps (default: 50)
+  --brain TEXT              Intelligence: auto, heuristic, cloud, local
+  --model TEXT              Model name/path for cloud or local brain
   --report-dir PATH         Report output directory
+
+sentinel replay <report_dir> [OPTIONS]
+
+Options:
+  --rerun                   Re-execute actions on live browser
+  --step                    Pause after each step for inspection
 ```
 
 ---
@@ -173,6 +207,18 @@ The Sentinel generates detailed HTML reports with:
 - **Confidence Scores**: How sure the agent was about each decision
 
 Reports are saved to `./sentinel_reports/YYYYMMDD_HHMMSS/report.html`
+
+### Session Replay
+
+Replay past exploration sessions to debug and re-validate:
+
+```bash
+# View session summary and decision timeline
+sentinel replay ./sentinel_reports/20251227_074249
+
+# Re-execute on live browser
+sentinel replay ./sentinel_reports/20251227_074249 --rerun
+```
 
 ---
 

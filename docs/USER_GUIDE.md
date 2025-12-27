@@ -14,10 +14,13 @@
 6. [Configuration Options](#configuration-options)
 7. [Understanding the Sense-Decide-Act Loop](#understanding-the-sense-decide-act-loop)
 8. [Working with Reports](#working-with-reports)
-9. [Stealth Mode](#stealth-mode)
-10. [Shadow DOM Support](#shadow-dom-support)
-11. [Troubleshooting](#troubleshooting)
-12. [FAQ](#faq)
+9. [Session Replay](#session-replay)
+10. [Local SLM Support](#local-slm-support)
+11. [Vision Language Models](#vision-language-models)
+12. [Stealth Mode](#stealth-mode)
+13. [Shadow DOM Support](#shadow-dom-support)
+14. [Troubleshooting](#troubleshooting)
+15. [FAQ](#faq)
 
 ---
 
@@ -182,6 +185,8 @@ sentinel explore <url> <goal> [OPTIONS]
 | `--headless/--headed` | `--headed` | Run browser headlessly |
 | `--training` | Off | Use mock LLM (free mode) |
 | `--max-steps` | 50 | Maximum exploration steps |
+| `--brain` | auto | Intelligence: auto, heuristic, cloud, local |
+| `--model` | None | Model name/path for cloud or local brain |
 | `--report-dir` | `./sentinel_reports` | Report output directory |
 
 **Examples:**
@@ -224,6 +229,35 @@ Show version information.
 
 ```bash
 sentinel version
+```
+
+### `sentinel replay`
+
+Replay a past exploration session.
+
+```bash
+sentinel replay <report_dir> [OPTIONS]
+```
+
+**Arguments:**
+- `report_dir`: Path to the report directory containing flight_record.json
+
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `--rerun` | Re-execute actions on a live browser |
+| `--step` | Pause after each step for inspection |
+
+**Examples:**
+```bash
+# View session summary and decision timeline
+sentinel replay ./sentinel_reports/20251227_074249
+
+# Re-run actions on live browser
+sentinel replay ./sentinel_reports/20251227_074249 --rerun
+
+# Step-by-step mode with pauses
+sentinel replay ./sentinel_reports/20251227_074249 --rerun --step
 ```
 
 ---
@@ -447,6 +481,112 @@ print(f"Start time: {record['metadata']['start_time']}")
 
 ---
 
+## Session Replay
+
+Session Replay allows you to view and re-execute past exploration sessions.
+
+### Viewing Past Sessions
+
+```bash
+sentinel replay ./sentinel_reports/20251227_074249
+```
+
+This displays:
+- Run ID, URL, and goal
+- Duration and step count
+- Decision timeline with confidence bars
+
+### Re-executing on Browser
+
+```bash
+# Re-run all actions on a live browser
+sentinel replay ./sentinel_reports/20251227_074249 --rerun
+
+# Step-by-step mode (pause after each action)
+sentinel replay ./sentinel_reports/20251227_074249 --rerun --step
+```
+
+### Python API
+
+```python
+from sentinel.reporters.session_replayer import SessionReplayer
+
+# Load a session
+replayer = SessionReplayer("./sentinel_reports/20251227_074249")
+session = replayer.load()
+
+# Print summary
+replayer.print_summary()
+
+# Iterate through decisions
+for decision in replayer.get_decisions():
+    print(f"{decision.action} -> {decision.target}")
+
+# Re-execute on browser
+results = replayer.replay_on_browser(driver)
+```
+
+---
+
+## Local SLM Support
+
+The Sentinel supports local Small Language Models (SLMs) for privacy-first, offline decision making.
+
+### Supported Models
+
+- **Phi-3 Mini**: Fast, efficient, ~4GB RAM
+- **Mistral 7B**: High quality, ~8GB RAM
+- Any GGUF model compatible with llama-cpp-python
+
+### Configuration
+
+```python
+agent = SentinelOrchestrator(
+    url="https://example.com",
+    goal="Click login",
+    brain_type="local",
+    model_name="C:/models/phi-3-mini.gguf"
+)
+```
+
+### CLI Usage
+
+```bash
+sentinel explore "https://example.com" "Login" --brain local --model phi-3
+```
+
+---
+
+## Vision Language Models
+
+The Sentinel includes a `VisualAgent` for screenshot-based UI analysis.
+
+### Backends
+
+- **Moondream2**: Local VLM via HuggingFace transformers
+- **OpenAI GPT-4o**: Cloud vision API
+- **Mock**: Fast testing without model downloads
+
+### Usage
+
+```python
+from sentinel.layers.sense.visual_agent import VisualAgent
+
+agent = VisualAgent(backend="moondream")
+
+# Describe the UI
+description = agent.describe_state("screenshot.png")
+
+# Find an element by description
+element = agent.find_element("screenshot.png", "the login button")
+print(f"Found at ({element.x}, {element.y})")
+
+# Verify an action succeeded
+confidence = agent.verify_action("before.png", "after.png", "clicked the button")
+```
+
+---
+
 ## Stealth Mode
 
 Stealth mode uses `sb-stealth-wrapper` (built on SeleniumBase UC Mode) to evade bot detection.
@@ -542,7 +682,11 @@ agent = SentinelOrchestrator(
 
 ### Q: Is The Sentinel an AI agent?
 
-**A:** It's a hybrid. Currently it uses heuristic-based decision making with keyword matching and element scoring. Future versions will integrate local SLMs (like phi-3-mini) for smarter decisions.
+**A:** Yes! It's a hybrid AI agent that can use:
+- **Heuristic Brain**: Fast, keyword-matching (default)
+- **Local SLM**: Phi-3, Mistral via llama-cpp-python (privacy-first)
+- **Cloud LLM**: OpenAI, Claude for maximum intelligence
+- **Vision LLM**: Moondream2 for screenshot-based element detection
 
 ### Q: Does it work with any website?
 
