@@ -1,12 +1,19 @@
 # Use official Python runtime as a parent image
 FROM python:3.11-slim-bookworm
 
+# Metadata
+LABEL maintainer="Dhiraj Das <dhirajdas.666@gmail.com>"
+LABEL version="0.3.0"
+LABEL description="The Sentinel - Autonomous Web Testing Agent"
+
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     # Sentinel options
-    SENTINEL_HEADLESS=true
+    SENTINEL_HEADLESS=true \
+    # Fix for some browser issues in container
+    QT_QPA_PLATFORM=offscreen
 
 # Set working directory
 WORKDIR /app
@@ -18,10 +25,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     curl \
     git \
+    build-essential \
     libglib2.0-0 \
     libnss3 \
     libgconf-2-4 \
     libfontconfig1 \
+    libxtst6 \
+    libxss1 \
+    libasound2 \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
 
