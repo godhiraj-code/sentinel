@@ -1,74 +1,299 @@
 {
   "title": "Glow Test Report",
-  "generated_at": "2025-12-27 07:40:03",
-  "duration": 32.793597,
+  "generated_at": "2025-12-27 23:02:02",
+  "duration": 844.767042,
   "summary": {
     "passed": 7,
-    "failed": 0,
+    "failed": 13,
     "skipped": 0,
-    "total": 7
+    "total": 20
   },
   "tests": [
     {
-      "nodeid": "tests/unit/test_visual_agent.py::TestVisualAgentMock::test_init_with_mock",
+      "nodeid": "tests/validation/test_01_dhirajdas_dev.py::test_01_dhirajdas_dev_validation",
       "outcome": "passed",
-      "duration": 0.00013749999925494194,
+      "duration": 13.006454200003645,
       "longrepr": null,
-      "sections": [],
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: dhirajdas_dev ---\nSUCCESS: 2 steps\n"
+        ]
+      ],
       "steps": [],
       "screenshots": []
     },
     {
-      "nodeid": "tests/unit/test_visual_agent.py::TestVisualAgentMock::test_describe_state_mock",
+      "nodeid": "tests/validation/test_02_amazon.py::test_02_amazon_validation",
       "outcome": "passed",
-      "duration": 0.0007410000034724362,
+      "duration": 8.457265299992287,
       "longrepr": null,
-      "sections": [],
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: amazon ---\nDEBUG: Click had no effect. Retrying with JS Force...\nSUCCESS: 2 steps\n"
+        ]
+      ],
       "steps": [],
       "screenshots": []
     },
     {
-      "nodeid": "tests/unit/test_visual_agent.py::TestVisualAgentMock::test_describe_state_missing_file",
+      "nodeid": "tests/validation/test_03_wikipedia.py::test_03_wikipedia_validation",
       "outcome": "passed",
-      "duration": 0.00018350000027567148,
+      "duration": 18.36074479999661,
       "longrepr": null,
-      "sections": [],
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: wikipedia ---\nSUCCESS: 2 steps\n"
+        ]
+      ],
       "steps": [],
       "screenshots": []
     },
     {
-      "nodeid": "tests/unit/test_visual_agent.py::TestVisualAgentMock::test_find_element_mock",
+      "nodeid": "tests/validation/test_04_github.py::test_04_github_validation",
       "outcome": "passed",
-      "duration": 0.0016923000002861954,
+      "duration": 36.20021899999119,
       "longrepr": null,
-      "sections": [],
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: github ---\nSUCCESS: 2 steps\n"
+        ]
+      ],
       "steps": [],
       "screenshots": []
     },
     {
-      "nodeid": "tests/unit/test_visual_agent.py::TestVisualAgentMock::test_verify_action_mock",
-      "outcome": "passed",
-      "duration": 0.0020321999982115813,
-      "longrepr": null,
-      "sections": [],
+      "nodeid": "tests/validation/test_05_hackernews.py::test_05_hackernews_validation",
+      "outcome": "failed",
+      "duration": 9.09513029998925,
+      "longrepr": "tests\\validation\\test_05_hackernews.py:28: in test_05_hackernews_validation\n    assert result.success is True, f\"Failed to achieve goal: {goal}\"\nE   AssertionError: Failed to achieve goal: Click 'new' link in header AND verify URL contains 'newest'\nE   assert False is True\nE    +  where False = ExecutionResult(success=False, goal=\"Click 'new' link in header AND verify URL contains 'newest'\", url='https://news.ycombinator.com/', steps=10, max_steps=10, decisions=[Decision(action='click', target='a', reasoning=\"Matched '' with goal target TargetSpec(text='new' link')\", confidence=0.7, metadata={}), Decision(action='click', target='#up_46401539', reasoning=\"Matched '' with goal target TargetSpec(text='new' link')\", confidence=0.7, metadata={}), Decision(action='click', target='input', reasoning=\"Matched '' with goal target TargetSpec(text='new' link')\", confidence=0.5, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={})], start_time=datetime.datetime(2025, 12, 27, 22, 49, 15, 481205), end_time=datetime.datetime(2025, 12, 27, 22, 49, 22, 851805), report_path='./sentinel_reports/validation_hackernews\\\\20251227_224915\\\\report.html', error='Max steps reached without achieving goal').success",
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: hackernews ---\nDEBUG: Click had no effect. Retrying with JS Force...\nFAILED: Max steps reached without achieving goal\n"
+        ]
+      ],
       "steps": [],
       "screenshots": []
     },
     {
-      "nodeid": "tests/unit/test_visual_agent.py::TestVisualAgentAutoDetect::test_auto_detect_falls_back_to_moondream",
-      "outcome": "passed",
-      "duration": 32.610198400005174,
-      "longrepr": null,
-      "sections": [],
+      "nodeid": "tests/validation/test_06_youtube.py::test_06_youtube_validation",
+      "outcome": "failed",
+      "duration": 25.60381000000052,
+      "longrepr": "tests\\validation\\test_06_youtube.py:28: in test_06_youtube_validation\n    assert result.success is True, f\"Failed to achieve goal: {goal}\"\nE   AssertionError: Failed to achieve goal: Click the first video title in list AND verify video player loads\nE   assert False is True\nE    +  where False = ExecutionResult(success=False, goal='Click the first video title in list AND verify video player loads', url='https://www.youtube.com/results?search_query=selenium+automation', steps=10, max_steps=10, decisions=[Decision(action='click', target='#button', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.7, metadata={}), Decision(action='click', target='#logo', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.7, metadata={}), Decision(action='click', target='button', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.7, metadata={}), Decision(action='click', target='a', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.7, metadata={}), Decision(action='click', target='input', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.5, metadata={}), Decision(action='click', target='tp-yt-paper-tooltip', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.5, metadata={}), Decision(action='click', target='#button', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.19999999999999996, metadata={}), Decision(action='click', target='#logo', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.19999999999999996, metadata={}), Decision(action='click', target='button', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.19999999999999996, metadata={}), Decision(action='click', target='a', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.19999999999999996, metadata={})], start_time=datetime.datetime(2025, 12, 27, 22, 49, 24, 559026), end_time=datetime.datetime(2025, 12, 27, 22, 49, 48, 669086), report_path='./sentinel_reports/validation_youtube\\\\20251227_224924\\\\report.html', error='Max steps reached without achieving goal').success",
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: youtube ---\nDEBUG: Click had no effect. Retrying with JS Force...\nDEBUG: Click had no effect. Retrying with JS Force...\nDEBUG: Click had no effect. Retrying with JS Force...\nFAILED: Max steps reached without achieving goal\n"
+        ]
+      ],
       "steps": [],
       "screenshots": []
     },
     {
-      "nodeid": "tests/unit/test_visual_agent.py::TestVisualElement::test_visual_element_creation",
+      "nodeid": "tests/validation/test_07_reddit.py::test_07_reddit_validation",
+      "outcome": "failed",
+      "duration": 84.38087149999046,
+      "longrepr": "tests\\validation\\test_07_reddit.py:28: in test_07_reddit_validation\n    assert result.success is True, f\"Failed to achieve goal: {goal}\"\nE   AssertionError: Failed to achieve goal: Click the first 'Comments' link AND verify comment section loads\nE   assert False is True\nE    +  where False = ExecutionResult(success=False, goal=\"Click the first 'Comments' link AND verify comment section loads\", url='https://www.reddit.com/r/programming/', steps=0, max_steps=10, decisions=[], start_time=datetime.datetime(2025, 12, 27, 22, 49, 50, 801412), end_time=datetime.datetime(2025, 12, 27, 22, 51, 13, 13429), report_path='./sentinel_reports/validation_reddit\\\\20251227_225001\\\\report.html', error='Max steps reached without achieving goal').success",
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: reddit ---\nFAILED: Max steps reached without achieving goal\n"
+        ],
+        [
+          "Captured log call",
+          "\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving.\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving.\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving.\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving.\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving.\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving.\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving.\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving.\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving.\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:235 Standard captcha click failed: PyAutoGUI can't be used in headless mode!\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving."
+        ]
+      ],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/validation/test_08_stackoverflow.py::test_08_stackoverflow_validation",
+      "outcome": "failed",
+      "duration": 11.370207500003744,
+      "longrepr": "tests\\validation\\test_08_stackoverflow.py:28: in test_08_stackoverflow_validation\n    assert result.success is True, f\"Failed to achieve goal: {goal}\"\nE   AssertionError: Failed to achieve goal: Click the 'Ask Question' button AND verify 'Ask a public question' heading\nE   assert False is True\nE    +  where False = ExecutionResult(success=False, goal=\"Click the 'Ask Question' button AND verify 'Ask a public question' heading\", url='https://stackoverflow.com/questions', steps=10, max_steps=10, decisions=[Decision(action='click', target='a', reasoning=\"Matched 'Cloudflare' with goal target TargetSpec(text='Ask Question' button')\", confidence=0.2, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={})], start_time=datetime.datetime(2025, 12, 27, 22, 51, 16, 568518), end_time=datetime.datetime(2025, 12, 27, 22, 51, 24, 707738), report_path='./sentinel_reports/validation_stackoverflow\\\\20251227_225116\\\\report.html', error='Max steps reached without achieving goal').success",
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: stackoverflow ---\nDEBUG: Click had no effect. Retrying with JS Force...\nFAILED: Max steps reached without achieving goal\n"
+        ]
+      ],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/validation/test_09_airbnb.py::test_09_airbnb_validation",
       "outcome": "passed",
-      "duration": 0.0002449999956297688,
+      "duration": 12.712346400003298,
       "longrepr": null,
-      "sections": [],
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: airbnb ---\nSUCCESS: 2 steps\n"
+        ]
+      ],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/validation/test_10_etsy.py::test_10_etsy_validation",
+      "outcome": "failed",
+      "duration": 6.190792399997008,
+      "longrepr": "tests\\validation\\test_10_etsy.py:28: in test_10_etsy_validation\n    assert result.success is True, f\"Failed to achieve goal: {goal}\"\nE   AssertionError: Failed to achieve goal: Click the first product image AND verify product details page\nE   assert False is True\nE    +  where False = ExecutionResult(success=False, goal='Click the first product image AND verify product details page', url='https://www.etsy.com/search?q=woodworking', steps=10, max_steps=10, decisions=[Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={})], start_time=datetime.datetime(2025, 12, 27, 22, 51, 39, 689620), end_time=datetime.datetime(2025, 12, 27, 22, 51, 43, 882718), report_path='./sentinel_reports/validation_etsy\\\\20251227_225139\\\\report.html', error='Max steps reached without achieving goal').success",
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: etsy ---\nFAILED: Max steps reached without achieving goal\n"
+        ]
+      ],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/validation/test_11_nytimes.py::test_11_nytimes_validation",
+      "outcome": "failed",
+      "duration": 101.4226362999907,
+      "longrepr": "tests\\validation\\test_11_nytimes.py:28: in test_11_nytimes_validation\n    assert result.success is True, f\"Failed to achieve goal: {goal}\"\nE   AssertionError: Failed to achieve goal: Click 'World' section link AND verify World News heading\nE   assert False is True\nE    +  where False = ExecutionResult(success=False, goal=\"Click 'World' section link AND verify World News heading\", url='https://www.nytimes.com/', steps=0, max_steps=10, decisions=[], start_time=datetime.datetime(2025, 12, 27, 22, 51, 45, 687293), end_time=datetime.datetime(2025, 12, 27, 22, 53, 25, 185912), report_path='./sentinel_reports/validation_nytimes\\\\20251227_225203\\\\report.html', error='Max steps reached without achieving goal').success",
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: nytimes ---\nFAILED: Max steps reached without achieving goal\n"
+        ]
+      ],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/validation/test_12_salesforce_dev.py::test_12_salesforce_dev_validation",
+      "outcome": "failed",
+      "duration": 145.63840600001276,
+      "longrepr": "tests\\validation\\test_12_salesforce_dev.py:28: in test_12_salesforce_dev_validation\n    assert result.success is True, f\"Failed to achieve goal: {goal}\"\nE   AssertionError: Failed to achieve goal: Click 'Documentation' link AND verify Developer Documentation page\nE   assert False is True\nE    +  where False = ExecutionResult(success=False, goal=\"Click 'Documentation' link AND verify Developer Documentation page\", url='https://developer.salesforce.com/', steps=0, max_steps=10, decisions=[], start_time=datetime.datetime(2025, 12, 27, 22, 53, 29, 35141), end_time=datetime.datetime(2025, 12, 27, 22, 55, 51, 132335), report_path='./sentinel_reports/validation_salesforce_dev\\\\20251227_225451\\\\report.html', error='Max steps reached without achieving goal').success",
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: salesforce_dev ---\nFAILED: Max steps reached without achieving goal\n"
+        ]
+      ],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/validation/test_13_python_docs.py::test_13_python_docs_validation",
+      "outcome": "failed",
+      "duration": 32.21459519999917,
+      "longrepr": "tests\\validation\\test_13_python_docs.py:28: in test_13_python_docs_validation\n    assert result.success is True, f\"Failed to achieve goal: {goal}\"\nE   AssertionError: Failed to achieve goal: Type 'asyncio' in search input AND verify search results appear\nE   assert False is True\nE    +  where False = ExecutionResult(success=False, goal=\"Type 'asyncio' in search input AND verify search results appear\", url='https://docs.python.org/3/', steps=9, max_steps=10, decisions=[Decision(action='click', target='a', reasoning=\"Matched '' with goal target TargetSpec(text='Type 'asyncio')\", confidence=0.7, metadata={}), Decision(action='click', target='label', reasoning=\"Matched '' with goal target TargetSpec(text='Type 'asyncio')\", confidence=0.5, metadata={}), Decision(action='click', target='#id-search-field', reasoning=\"Matched '' with goal target TargetSpec(text='Type 'asyncio')\", confidence=0.5, metadata={}), Decision(action='click', target='#submit', reasoning=\"Matched 'GO' with goal target TargetSpec(text='Type 'asyncio')\", confidence=0.2, metadata={}), Decision(action='click', target='a', reasoning=\"Matched '' with goal target TargetSpec(text='Type 'asyncio')\", confidence=0.19999999999999996, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={})], start_time=datetime.datetime(2025, 12, 27, 22, 55, 54, 78246), end_time=datetime.datetime(2025, 12, 27, 22, 56, 23, 913643), report_path='./sentinel_reports/validation_python_docs\\\\20251227_225554\\\\report.html', error='Max steps reached without achieving goal').success",
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: python_docs ---\nDEBUG: Click had no effect. Retrying with JS Force...\nDEBUG: Click had no effect. Retrying with JS Force...\nFAILED: Max steps reached without achieving goal\n"
+        ]
+      ],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/validation/test_14_react_docs.py::test_14_react_docs_validation",
+      "outcome": "passed",
+      "duration": 6.54671860000235,
+      "longrepr": null,
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: react_docs ---\nSUCCESS: 2 steps\n"
+        ]
+      ],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/validation/test_15_trello_home.py::test_15_trello_home_validation",
+      "outcome": "failed",
+      "duration": 18.43831840000348,
+      "longrepr": "tests\\validation\\test_15_trello_home.py:28: in test_15_trello_home_validation\n    assert result.success is True, f\"Failed to achieve goal: {goal}\"\nE   AssertionError: Failed to achieve goal: Click 'Log in' link AND verify login form appears\nE   assert False is True\nE    +  where False = ExecutionResult(success=False, goal=\"Click 'Log in' link AND verify login form appears\", url='https://trello.com/', steps=0, max_steps=10, decisions=[], start_time=datetime.datetime(2025, 12, 27, 22, 56, 31, 995145), end_time=datetime.datetime(2025, 12, 27, 22, 56, 48, 986839), report_path='./sentinel_reports/validation_trello_home\\\\20251227_225638\\\\report.html', error='Max steps reached without achieving goal').success",
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: trello_home ---\nFAILED: Max steps reached without achieving goal\n"
+        ]
+      ],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/validation/test_16_spotify_web.py::test_16_spotify_web_validation",
+      "outcome": "failed",
+      "duration": 32.32149260000733,
+      "longrepr": "tests\\validation\\test_16_spotify_web.py:28: in test_16_spotify_web_validation\n    assert result.success is True, f\"Failed to achieve goal: {goal}\"\nE   AssertionError: Failed to achieve goal: Click 'Search' navigation item AND verify search input appears\nE   assert False is True\nE    +  where False = ExecutionResult(success=False, goal=\"Click 'Search' navigation item AND verify search input appears\", url='https://open.spotify.com/', steps=0, max_steps=10, decisions=[], start_time=datetime.datetime(2025, 12, 27, 22, 56, 50, 602243), end_time=datetime.datetime(2025, 12, 27, 22, 57, 21, 312727), report_path='./sentinel_reports/validation_spotify_web\\\\20251227_225705\\\\report.html', error='Max steps reached without achieving goal').success",
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: spotify_web ---\nFAILED: Max steps reached without achieving goal\n"
+        ]
+      ],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/validation/test_17_openai_home.py::test_17_openai_home_validation",
+      "outcome": "failed",
+      "duration": 8.104188700002851,
+      "longrepr": "tests\\validation\\test_17_openai_home.py:28: in test_17_openai_home_validation\n    assert result.success is True, f\"Failed to achieve goal: {goal}\"\nE   AssertionError: Failed to achieve goal: Click 'Research' in navigation AND verify Research index page\nE   assert False is True\nE    +  where False = ExecutionResult(success=False, goal=\"Click 'Research' in navigation AND verify Research index page\", url='https://openai.com/', steps=10, max_steps=10, decisions=[Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={}), Decision(action='scroll', target='body', reasoning='No matching elements found, scrolling to discover more', confidence=0.3, metadata={})], start_time=datetime.datetime(2025, 12, 27, 22, 57, 23, 275637), end_time=datetime.datetime(2025, 12, 27, 22, 57, 29, 460948), report_path='./sentinel_reports/validation_openai_home\\\\20251227_225723\\\\report.html', error='Max steps reached without achieving goal').success",
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: openai_home ---\nFAILED: Max steps reached without achieving goal\n"
+        ]
+      ],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/validation/test_18_bbc_news.py::test_18_bbc_news_validation",
+      "outcome": "failed",
+      "duration": 59.24767240000074,
+      "longrepr": "tests\\validation\\test_18_bbc_news.py:28: in test_18_bbc_news_validation\n    assert result.success is True, f\"Failed to achieve goal: {goal}\"\nE   AssertionError: Failed to achieve goal: Click first 'Read more' link in top story AND verify article loads\nE   assert False is True\nE    +  where False = ExecutionResult(success=False, goal=\"Click first 'Read more' link in top story AND verify article loads\", url='https://www.bbc.com/news', steps=0, max_steps=10, decisions=[], start_time=datetime.datetime(2025, 12, 27, 22, 57, 33, 491904), end_time=datetime.datetime(2025, 12, 27, 22, 58, 28, 950667), report_path='./sentinel_reports/validation_bbc_news\\\\20251227_225810\\\\report.html', error='Max steps reached without achieving goal').success",
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: bbc_news ---\nFAILED: Max steps reached without achieving goal\n"
+        ]
+      ],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/validation/test_19_w3schools.py::test_19_w3schools_validation",
+      "outcome": "failed",
+      "duration": 207.24695190000057,
+      "longrepr": "tests\\validation\\test_19_w3schools.py:28: in test_19_w3schools_validation\n    assert result.success is True, f\"Failed to achieve goal: {goal}\"\nE   AssertionError: Failed to achieve goal: Click 'Learn HTML' button AND verify HTML Tutorial heading\nE   assert False is True\nE    +  where False = ExecutionResult(success=False, goal=\"Click 'Learn HTML' button AND verify HTML Tutorial heading\", url='https://www.w3schools.com/', steps=0, max_steps=10, decisions=[], start_time=datetime.datetime(2025, 12, 27, 22, 58, 31, 499945), end_time=datetime.datetime(2025, 12, 27, 23, 1, 56, 345917), report_path='./sentinel_reports/validation_w3schools\\\\20251227_225837\\\\report.html', error='Max steps reached without achieving goal').success",
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: w3schools ---\nFAILED: Max steps reached without achieving goal\n"
+        ],
+        [
+          "Captured log call",
+          "\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving.\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving.\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving.\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving.\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving.\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving.\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving.\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving.\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving.\n\u001b[33mWARNING \u001b[0m sb_stealth_wrapper:__init__.py:257 Max retries reached for challenge solving."
+        ]
+      ],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/validation/test_20_internet_archive.py::test_20_internet_archive_validation",
+      "outcome": "passed",
+      "duration": 5.811240600000019,
+      "longrepr": null,
+      "sections": [
+        [
+          "Captured stdout call",
+          "\n--- START TEST: internet_archive ---\nSUCCESS: 2 steps\n"
+        ]
+      ],
       "steps": [],
       "screenshots": []
     }
@@ -79,60 +304,84 @@
   },
   "history": [
     {
-      "id": 7,
-      "timestamp": "2025-12-27T07:40:03.022955",
+      "id": 42,
+      "timestamp": "2025-12-27T23:02:02.334255",
       "passed": 7,
+      "failed": 13,
+      "skipped": 0,
+      "duration": 844.767042
+    },
+    {
+      "id": 41,
+      "timestamp": "2025-12-27T22:42:30.971497",
+      "passed": 1,
       "failed": 0,
       "skipped": 0,
-      "duration": 32.793597
+      "duration": 45.170193
     },
     {
-      "id": 6,
-      "timestamp": "2025-12-26T19:21:58.615437",
-      "passed": 2,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 2.076955
-    },
-    {
-      "id": 5,
-      "timestamp": "2025-12-26T19:13:28.703074",
+      "id": 40,
+      "timestamp": "2025-12-27T22:38:43.750193",
       "passed": 0,
-      "failed": 2,
-      "skipped": 0,
-      "duration": 0.323468
-    },
-    {
-      "id": 4,
-      "timestamp": "2025-12-26T19:12:37.139557",
-      "passed": 0,
-      "failed": 2,
-      "skipped": 0,
-      "duration": 1.177505
-    },
-    {
-      "id": 3,
-      "timestamp": "2025-12-26T19:12:17.468605",
-      "passed": 0,
-      "failed": 2,
-      "skipped": 0,
-      "duration": 1.190544
-    },
-    {
-      "id": 2,
-      "timestamp": "2025-12-26T19:02:39.235645",
-      "passed": 3,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 0.083422
-    },
-    {
-      "id": 1,
-      "timestamp": "2025-12-26T19:02:18.400662",
-      "passed": 2,
       "failed": 1,
       "skipped": 0,
-      "duration": 0.362964
+      "duration": 239.696476
+    },
+    {
+      "id": 39,
+      "timestamp": "2025-12-27T22:37:30.639771",
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "duration": 243.27921
+    },
+    {
+      "id": 38,
+      "timestamp": "2025-12-27T22:32:59.025738",
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "duration": 242.476233
+    },
+    {
+      "id": 37,
+      "timestamp": "2025-12-27T22:21:32.749940",
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 227.021239
+    },
+    {
+      "id": 36,
+      "timestamp": "2025-12-27T22:17:33.639187",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 813.970378
+    },
+    {
+      "id": 35,
+      "timestamp": "2025-12-27T21:57:06.682620",
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 201.164667
+    },
+    {
+      "id": 34,
+      "timestamp": "2025-12-27T21:53:26.924833",
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 0.027905
+    },
+    {
+      "id": 33,
+      "timestamp": "2025-12-27T21:52:16.857200",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 49.754392
     }
   ]
 }

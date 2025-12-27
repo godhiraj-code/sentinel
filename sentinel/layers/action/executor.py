@@ -54,6 +54,8 @@ class ActionExecutor:
         driver: "WebDriver",
         timeout: int = 30,
         max_retries: int = 3,
+        stealth_manager: Optional[Any] = None,
+        recorder: Optional[Any] = None,
     ):
         """
         Initialize the action executor.
@@ -62,10 +64,14 @@ class ActionExecutor:
             driver: Selenium WebDriver (optionally wrapped with waitless)
             timeout: Default timeout for actions in seconds
             max_retries: Maximum retry attempts for failed actions
+            stealth_manager: Optional StealthDriverManager for advanced actions
+            recorder: Optional FlightRecorder for logging
         """
         self.driver = driver
         self.timeout = timeout
         self.max_retries = max_retries
+        self.stealth_manager = stealth_manager
+        self.recorder = recorder
         self._has_waitless = self._check_waitless_support()
     
     def _check_waitless_support(self) -> bool:
@@ -73,12 +79,13 @@ class ActionExecutor:
         # Check for waitless wrapper markers
         return hasattr(self.driver, "_waitless_wrapped")
     
-    def execute(self, decision: "Decision") -> bool:
+    def execute(self, decision: "Decision", force_js: bool = False) -> bool:
         """
         Execute a decision from the intelligence layer.
         
         Args:
             decision: Decision object with action and target
+            force_js: Whether to force JavaScript execution (bypass standard events)
         
         Returns:
             True if action succeeded, False otherwise
@@ -87,7 +94,7 @@ class ActionExecutor:
         target = decision.target
         
         if action == "click":
-            return self.click_selector(target)
+            return self.click_selector(target, force_js=force_js)
         elif action == "type":
             text = decision.metadata.get("text", "") if hasattr(decision, "metadata") else ""
             return self.type_text_selector(target, text)
@@ -103,7 +110,7 @@ class ActionExecutor:
         else:
             return False
     
-    def click(self, element_node: "ElementNode") -> ActionResult:
+    def click(self, element_node: "ElementNode", force_js: bool = False) -> ActionResult:
         """
         Click an element with automatic stability wait and self-healing.
         
@@ -116,6 +123,24 @@ class ActionExecutor:
         start_time = time.time()
         
         try:
+            # 0. Strategy 0: StealthBot Smart Click (Priority if available)
+            if self.stealth_manager and hasattr(self.stealth_manager, "smart_click"):
+                if self.recorder:
+                    self.recorder.log_info(f"Stealth: Using smart_click for {element_node.selector}")
+                try:
+                    self.stealth_manager.smart_click(element_node.selector)
+                    self._wait_for_stability()
+                    return ActionResult(
+                        success=True,
+                        action="click",
+                        target=element_node.selector,
+                        duration_ms=(time.time() - start_time) * 1000,
+                        metadata={"strategy": "stealth_smart_click"}
+                    )
+                except Exception as e:
+                    if self.recorder:
+                        self.recorder.log_warning(f"Stealth smart_click failed: {e}. Falling back...")
+
             # 1. Resolve and Scroll
             element = self._resolve_element(element_node)
             if element is None:
@@ -130,62 +155,63 @@ class ActionExecutor:
             self._scroll_into_view(element)
             self._wait_for_stability()
             
-            # 2. Strategy 1: Standard Selenium Click
-            for attempt in range(self.max_retries):
-                try:
-                    # Re-resolve if stale (Self-healing)
-                    if attempt > 0:
-                        element = self._resolve_element(element_node)
-                        if not element: break
-                        self._scroll_into_view(element)
+            # 2. Strategy 1: Standard Selenium Click (Skip if force_js requested)
+            if not force_js:
+                for attempt in range(self.max_retries):
+                    try:
+                        # Re-resolve if stale (Self-healing)
+                        if attempt > 0:
+                            element = self._resolve_element(element_node)
+                            if not element: break
+                            self._scroll_into_view(element)
 
-                    # Store URL before click to detect navigation
-                    url_before = self.driver.current_url
-                    
-                    element.click()
-                    
-                    # Wait for stability - but page navigation causes exceptions
-                    try:
-                        self._wait_for_stability()
-                    except (Exception, StaleElementReferenceException) as stability_err:
-                        # If page navigated or element became stale, it's often a success
-                        url_after = self.driver.current_url
-                        if url_before != url_after:
-                            # Navigation occurred - absolute success
-                            return ActionResult(
-                                success=True,
-                                action="click",
-                                target=element_node.selector,
-                                duration_ms=(time.time() - start_time) * 1000,
-                                metadata={"navigation": True}
-                            )
-                        # If no navigation but exception, it might be a real failure or 
-                        # just a transient issue. We'll let the loop retry.
-                        raise stability_err
-                    
-                    return ActionResult(
-                        success=True,
-                        action="click",
-                        target=element_node.selector,
-                        duration_ms=(time.time() - start_time) * 1000,
-                    )
-                except Exception as e:
-                    # Check if navigation happened even if click threw exception
-                    try:
-                        if self.driver.current_url != url_before:
-                             return ActionResult(
-                                success=True,
-                                action="click",
-                                target=element_node.selector,
-                                duration_ms=(time.time() - start_time) * 1000,
-                                metadata={"navigation": True, "error_suppressed": str(e)}
-                            )
-                    except: pass
-                    
-                    # If this is the last attempt, try Strategy 2 (JS Fallback)
-                    if attempt == self.max_retries - 1:
-                        break
-                    time.sleep(self.RETRY_DELAY_MS / 1000)
+                        # Store URL before click to detect navigation
+                        url_before = self.driver.current_url
+                        
+                        element.click()
+                        
+                        # Wait for stability - but page navigation causes exceptions
+                        try:
+                            self._wait_for_stability()
+                        except (Exception, StaleElementReferenceException) as stability_err:
+                            # If page navigated or element became stale, it's often a success
+                            url_after = self.driver.current_url
+                            if url_before != url_after:
+                                # Navigation occurred - absolute success
+                                return ActionResult(
+                                    success=True,
+                                    action="click",
+                                    target=element_node.selector,
+                                    duration_ms=(time.time() - start_time) * 1000,
+                                    metadata={"navigation": True}
+                                )
+                            # If no navigation but exception, it might be a real failure or 
+                            # just a transient issue. We'll let the loop retry.
+                            raise stability_err
+                        
+                        return ActionResult(
+                            success=True,
+                            action="click",
+                            target=element_node.selector,
+                            duration_ms=(time.time() - start_time) * 1000,
+                        )
+                    except Exception as e:
+                        # Check if navigation happened even if click threw exception
+                        try:
+                            if self.driver.current_url != url_before:
+                                 return ActionResult(
+                                    success=True,
+                                    action="click",
+                                    target=element_node.selector,
+                                    duration_ms=(time.time() - start_time) * 1000,
+                                    metadata={"navigation": True, "error_suppressed": str(e)}
+                                )
+                        except: pass
+                        
+                        # If this is the last attempt, try Strategy 2 (JS Fallback)
+                        if attempt == self.max_retries - 1:
+                            break
+                        time.sleep(self.RETRY_DELAY_MS / 1000)
 
             # 3. Strategy 2: JavaScript Fallback (Self-healing)
             try:
@@ -237,7 +263,7 @@ class ActionExecutor:
                 error=str(e),
             )
 
-    def click_selector(self, selector: str) -> bool:
+    def click_selector(self, selector: str, force_js: bool = False) -> bool:
         """
         Click an element by CSS selector with self-healing.
         """
@@ -248,9 +274,9 @@ class ActionExecutor:
             class MockNode:
                 selector: str
                 shadow_path: Optional[str] = None
-            
+                
             node = MockNode(selector=selector)
-            result = self.click(node)
+            result = self.click(node, force_js=force_js)
             return result.success
         except Exception:
             return False

@@ -44,11 +44,27 @@ You simply tell The Sentinel what you want:
 agent = SentinelOrchestrator(
     url="https://example.com/login",
     goal="Login with username 'test' and password 'pass123' and verify 'Welcome' appears"
+    goal="Login with username 'test' and password 'pass123' and verify 'Welcome' appears"
 )
 result = agent.run()
 ```
 
-The agent figures out how to achieve the goal autonomously and **rigorously verifies** the outcome before finishing.
+### Writing Effective Goals (v0.3.0)
+
+Sentinel v0.3.0 introduces a structured **Goal Parser**. You can chain actions using natural language connectors:
+
+- **Sequential actions**: "Click 'Login' **then** type 'user' into the username field"
+- **Verification**: "Click 'Submit' **and then verify** 'Success' appears"
+- **Conditionals**: "If 'Cookie Banner' exists click 'Accept'"
+
+The agent parses these into specific steps to ensure execution order and rigorous verification.
+
+### How It Works (Adaptive Stealth v0.3.0)
+
+By default, Sentinel v0.3.0 uses an **Adaptive Stealth Layer**:
+1. It starts in high-performance mode for speed.
+2. If it detects a Captcha or anti-bot block, it automatically **pivots** to Undetected Chrome (UC) mode.
+3. It resolves the challenge autonomously and continues the mission.
 
 ---
 
@@ -194,6 +210,14 @@ sentinel explore <url> <goal> [OPTIONS]
 | `--mutation-threshold` | 200 | Pixels-per-frame to consider stable |
 | `--stability-mode` | relaxed | relaxed, strict, disabled |
 | `--report-dir` | `./sentinel_reports` | Report output directory |
+
+### Tuning for Animations (Waitless)
+
+Sentinel v0.3.0 uses the **Waitless** engine to automatically handle animated interfaces.
+
+- **`--stability-mode relaxed` (Default)**: Best for most sites. Allows minor background animations while waiting for the main UI to settle.
+- **`--stability-mode strict`**: Use for static forms or critical data entry. Waits for *absolute* stillness.
+- **`--stability-timeout 5`**: Reduce this (default 15s) if improvements are slow on highly animated sites like portfolios.
 
 **Examples:**
 ```bash
@@ -449,34 +473,59 @@ success = executor.execute(decision)
 
 ---
 
-## Working with Reports
+## Working with Reports (v0.3.0)
 
-### Report Location
+Every time you run The Sentinel, it creates a detailed **Flight Record** in the `./sentinel_reports` directory. This is your most powerful tool for understanding and debugging the agent's behavior.
 
-Reports are saved to `./sentinel_reports/YYYYMMDD_HHMMSS/`:
+### 1. Finding Your Report
 
+Reports are organized by timestamp:
+`./sentinel_reports/YYYYMMDD_HHMMSS/`
+
+Inside each folder, you will find:
+- **`report.html`**: The interactive visual timeline. **Open this in any browser.**
+- **`flight_record.json`**: Raw data of every thought, decision, and action (useful for automated analysis).
+- **`screenshots/`**: Visual evidence of what the agent saw at every single step.
+
+---
+
+### 2. How to Debug a Failure
+
+If your test fails or gets "stuck" (Max Steps reached), follow these steps:
+
+#### Step 1: Open `report.html`
+Look at the **Result Summary** at the top. It will tell you if the goal was achieved or if it timed out.
+
+#### Step 2: Check the "Decision Timeline"
+This is a chronological list of everything the agent did.
+- **👁️ World State**: Click to see how many elements the agent "saw" on the page.
+- **🧠 Decision**: Read the agent's reasoning. Why did it click that specific button?
+- **⚡ Action**: Did the click actually happen? If you see "Action result: failed", it means the element was probably obscured by a modal or animation.
+
+#### Step 3: Compare Screenshots
+The Sentinel takes screenshots **before** and **after** every action:
+- **`navigation.png`**: The page as it first loaded.
+- **`step_X_world_state.png`**: The page state when the agent made its decision.
+- **`step_X_after_action.png`**: The result of the action (did the modal close? did the page navigate?).
+
+> [!TIP]
+> **Common Failure: "Max Steps Reached"**
+> This usually means the agent is in a loop or can't find its target. Look at the last few screenshots. Is there a cookie banner blocking the screen? Is the agent clicking the same button repeatedly? If so, try clarifying your goal (e.g., "Dismiss the cookie banner then click Login").
+
+---
+
+### 3. Replaying a Session
+
+You can re-examine any past session using the CLI:
+
+```bash
+# View the summary in terminal
+sentinel replay ./sentinel_reports/20251227_223511
+
+# Re-run the actions on a live browser to see it happen again
+sentinel replay ./sentinel_reports/20251227_223511 --rerun
 ```
-sentinel_reports/
-└── 20231225_143052/
-    ├── report.html          # Main HTML report
-    ├── flight_record.json   # JSON log of all events
-    └── screenshots/         # Screenshots at each step
-        ├── step_0.png
-        ├── step_1.png
-        └── ...
-```
 
-### Report Contents
-
-The HTML report includes:
-- **Summary**: Success/failure, duration, step count.
-- **Decision Timeline**: Each action with timestamp.
-- **World State Snapshots**: Elements discovered.
-- **Multi-State Screenshots**:
-    - `navigation.png`: Visual start state.
-    - `step_N_world_state.png`: What the agent saw before deciding.
-    - `step_N_after_action.png`: Visual proof of action execution.
-- **Error Details**: If exploration failed.
 
 ### Accessing Report Data Programmatically
 
@@ -612,10 +661,10 @@ Stealth mode uses `sb-stealth-wrapper` (built on SeleniumBase UC Mode) to evade 
 
 ### How It Works
 
-1. Uses undetected Chrome driver
-2. Randomizes browser fingerprints
-3. Simulates human-like interactions
-4. Handles challenge pages automatically
+1. **Adaptive Pivot**: Sentinel automatically detects blocking screens and relaunches in UC mode.
+2. **Behavioral Bypass**: Uses natural mouse trajectories (`smart_click`) to avoid detection.
+3. **Mid-session Challenge Handling**: Solves Captchas without losing task progress.
+4. **Vectorized Sensing**: Map the entire page DOM in milliseconds using a single JS pass.
 
 ### Limitations
 
@@ -681,6 +730,13 @@ agent = SentinelOrchestrator(
     training_mode=True        # Faster decisions
 )
 ```
+
+### "0 Elements Found" or "Blind Agent"
+
+If the agent scrolls but doesn't interact:
+1.  **Check Animations**: heavily animated sites might trigger the "Safety Wait" loop. Try `--stability-mode relaxed`.
+2.  **Shadow DOM**: Ensure `lumos` is installed (`sentinel doctor`).
+3.  **Context-Sensing**: v0.3.0 fixes a bug where getting element text caused valid elements to be ignored. Ensure you are on the latest version.
 
 ### Stealth Mode Fails
 

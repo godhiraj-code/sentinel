@@ -65,6 +65,12 @@ class StealthDriverManager:
         if self._stealth_bot:
             return self._stealth_bot.smart_click(selector)
     
+    def handle_challenges(self):
+        """Invoke StealthBot challenge resolution (Captchas, Cloudflare, etc.)"""
+        if self._stealth_bot:
+            return self._stealth_bot._handle_challenges()
+        return False
+
     def save_screenshot(self, name: str):
         """Save a debug screenshot."""
         if self._stealth_bot:

@@ -134,14 +134,23 @@ class FlightRecorder:
             except Exception:
                 pass
     
-    def log_action_result(self, step: int, success: bool, error: Optional[str] = None) -> None:
+    def log_action_result(self, step: int, result: Any, error: Optional[str] = None) -> None:
         """Log an action result."""
+        # Handle ActionResult object or raw bool
+        if hasattr(result, "success"):
+            success = result.success
+            error = result.error or error
+            meta = result.metadata
+        else:
+            success = bool(result)
+            meta = {}
+
         self.entries.append(LogEntry(
             timestamp=datetime.now(),
             step=step,
             event_type="action",
             message=f"Action result: {'success' if success else 'failed'}",
-            data={"success": success, "error": error},
+            data={"success": success, "error": error, "meta": meta},
         ))
     
     def log_info(self, message: str) -> None:

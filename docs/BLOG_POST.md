@@ -114,7 +114,7 @@ Actions are executed with built-in resilience:
 - **Automatic Scrolling**: Element not visible? Scroll to it.
 - **Stability Waits**: Wait for UI to settle before clicking.
 - **Self-Healing**: Stale element? Re-resolve and retry. Intercepted click? JS fallback.
-- **Stealth Mode**: Bypass bot detection automatically.
+- **Adaptive Stealth**: Bypass bot detection automatically with dynamic pivoting.
 
 *Powered by: waitless, sb-stealth-wrapper, selenium-teleport*
 

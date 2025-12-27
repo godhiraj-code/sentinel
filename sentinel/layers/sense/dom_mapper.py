@@ -32,6 +32,7 @@ class ElementNode:
     is_visible: bool = True
     is_interactive: bool = True
     element_type: str = "standard"  # "standard", "shadow", "canvas"
+    context_text: str = "" # Surrounding text context for disambiguation
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -46,13 +47,15 @@ class ElementNode:
             "is_visible": self.is_visible,
             "is_interactive": self.is_interactive,
             "element_type": self.element_type,
+            "context_text": self.context_text,
         }
     
     def __str__(self) -> str:
         """Human-readable representation for LLM prompts."""
         text_preview = self.text[:50] + "..." if len(self.text) > 50 else self.text
         attrs = ", ".join(f'{k}="{v}"' for k, v in self.attributes.items() if k in ["id", "class", "name", "type", "placeholder"])
-        return f"<{self.tag} {attrs}>{text_preview}</{self.tag}>"
+        context = f" [Context: {self.context_text[:30]}]" if self.context_text else ""
+        return f"<{self.tag} {attrs}>{text_preview}</{self.tag}>{context}"
 
 
 class DOMMapper:
@@ -122,30 +125,95 @@ class DOMMapper:
         return unique_elements
     
     def _map_standard_dom(self) -> List[ElementNode]:
-        """Map all interactive elements in the standard DOM."""
+        """Map all interactive elements in the standard DOM using a single JS pass."""
         elements: List[ElementNode] = []
         
         # Build selector for interactive elements
         selector = ", ".join(self.INTERACTIVE_TAGS)
-        
-        # Also include elements with interactive attributes
         selector += ", [onclick], [onchange], [role='button'], [role='link'], [tabindex]"
         
         try:
-            web_elements = self.driver.find_elements("css selector", selector)
+            # Execute unified mapper script
+            script = self._get_unified_mapper_script()
+            results = self.driver.execute_script(script, selector)
             
-            for idx, elem in enumerate(web_elements):
+            for idx, res in enumerate(results):
                 try:
+                    # Generate unique ID in Python
+                    unique_str = f"{res['tag']}_{res['attributes'].get('id', '')}_{res['attributes'].get('class', '')}_{res['text'][:20]}_{idx}"
+                    element_id = hashlib.md5(unique_str.encode()).hexdigest()[:12]
+                    
+                    node = ElementNode(
+                        id=element_id,
+                        tag=res['tag'],
+                        text=res['text'],
+                        selector=res['selector'],
+                        shadow_path=None,
+                        attributes=res['attributes'],
+                        bounding_box=res['rect'],
+                        is_visible=True,  # JS filter ensures visibility
+                        is_interactive=True,
+                        element_type="standard",
+                        context_text=res['context'],
+                    )
+                    elements.append(node)
+                except Exception:
+                    continue
+        except Exception as e:
+            # Fallback to slow mapping if script fails
+            print(f"WARNING: Unified mapper failed ({e}), falling back to slow mode...")
+            try:
+                web_elements = self.driver.find_elements("css selector", selector)
+                for idx, elem in enumerate(web_elements):
                     node = self._element_to_node(elem, idx)
                     if node and node.is_visible:
                         elements.append(node)
-                except Exception:
-                    # Skip elements that cause issues
-                    continue
-        except Exception:
-            pass
+            except Exception:
+                pass
         
         return elements
+
+    def _get_unified_mapper_script(self) -> str:
+        """Get the JavaScript for vectorized element mapping."""
+        return r"""
+        const selector = arguments[0];
+        const elements = document.querySelectorAll(selector);
+        
+        const isVisible = (el) => {
+            if (el.checkVisibility) return el.checkVisibility();
+            return el.offsetWidth > 0 && el.offsetHeight > 0;
+        };
+
+        const getStableSelector = (el) => {
+            if (el.id && !/^\d/.test(el.id)) return '#' + CSS.escape(el.id);
+            const dataAttrs = ['data-testid', 'data-id', 'data-automation'];
+            for (let attr of dataAttrs) {
+                let val = el.getAttribute(attr);
+                if (val) return '[' + attr + '="' + CSS.escape(val) + '"]';
+            }
+            return el.tagName.toLowerCase();
+        };
+
+        return Array.from(elements)
+            .filter(isVisible)
+            .slice(0, 500)
+            .map(el => {
+                const rect = el.getBoundingClientRect();
+                const attrs = {};
+                for (let attr of ['id', 'class', 'role', 'name', 'href', 'aria-label']) {
+                    let val = el.getAttribute(attr);
+                    if (val) attrs[attr] = val.substring(0, 100);
+                }
+                return {
+                    tag: el.tagName.toLowerCase(),
+                    text: (el.innerText || "").substring(0, 100).trim(),
+                    selector: getStableSelector(el),
+                    context: "",
+                    rect: { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
+                    attributes: attrs
+                };
+            });
+        """
     
     def _map_shadow_elements(self) -> List[ElementNode]:
         """
@@ -282,18 +350,126 @@ class DOMMapper:
             except Exception:
                 bounding_box = {}
             
+            # Performance Optimization: Calculate Selector AND Context in ONE call
+            # This avoids double round-trips to the browser.
+            
+            try:
+                # UNWRAP WAITLESS ELEMENT: Fix for JSON serialization error
+                script_arg = element
+                
+                # Recursive unwrap to handle nested wrappers
+                max_unwrap = 5
+                while max_unwrap > 0:
+                    if hasattr(script_arg, "wrapped_element"):
+                        script_arg = script_arg.wrapped_element
+                    elif hasattr(script_arg, "_element"):
+                        script_arg = script_arg._element
+                    else:
+                        break
+                    max_unwrap -= 1
+
+                js_result = self.driver.execute_script("""
+                    const el = arguments[0];
+                    if (!el) return {selector: "", context: ""};
+
+                    // --- A. SELECTOR GENERATION ---
+                    // --- A. SELECTOR GENERATION (Robust & Stable) ---
+                    const getStableSelector = (el) => {
+                        if (el.id && !/^\d/.test(el.id)) return '#' + el.id;
+                        
+                        let path = [];
+                        let cur = el;
+                        while (cur && cur.nodeType === Node.ELEMENT_NODE) {
+                            let part = cur.nodeName.toLowerCase();
+                            // If we find a stable ID, anchor there and stop
+                            if (cur.id && !/^\d/.test(cur.id)) {
+                                path.unshift('#' + cur.id);
+                                break;
+                            }
+                            // Use classes as secondary stabilizers
+                            if (cur.className && typeof cur.className === 'string') {
+                                const classes = cur.className.trim().split(/\s+/).filter(c => !c.match(/hover|active|focus|selected/));
+                                if (classes.length > 0) part += '.' + classes[0];
+                            }
+                            
+                            let sib = cur, nth = 1;
+                            while (sib = sib.previousElementSibling) {
+                                if (sib.nodeName === cur.nodeName) nth++;
+                            }
+                            if (nth !== 1) part += `:nth-of-type(${nth})`;
+                            
+                            path.unshift(part);
+                            cur = cur.parentNode;
+                        }
+                        return path.join(" > ");
+                    };
+                    const uniqueSelector = getStableSelector(el);
+
+                    // --- B. CONTEXT DISCOVERY (Breadcrumbs) ---
+                    const getContextBreadcrumbs = (el) => {
+                        let breadcrumbs = [];
+                        
+                        // 1. Direct Hints
+                        const aria = el.getAttribute('aria-label') || el.title || el.placeholder;
+                        if (aria) breadcrumbs.push(aria);
+                        
+                        // 2. Traversal for Titles & Containers
+                        const isHeading = (node) => {
+                            const tag = node.tagName;
+                            if (/H[1-6]/.test(tag)) return true;
+                            if (['STRONG', 'B', 'LEGEND', 'SUMMARY'].includes(tag)) return true;
+                            if (node.getAttribute('role') === 'heading') return true;
+                            const cls = (node.className || "").toString().toLowerCase();
+                            return !!cls.match(/title|header|heading|name|label/);
+                        };
+
+                        let cur = el.parentElement;
+                        let seenTexts = new Set();
+                        while (cur && cur.tagName !== 'BODY' && breadcrumbs.length < 3) {
+                            // Check for headings within or above the container
+                            const headings = Array.from(cur.querySelectorAll('*'))
+                                .filter(h => isHeading(h) && (h.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING))
+                                .map(h => h.innerText.trim())
+                                .filter(t => t.length > 2 && t.length < 100);
+                            
+                            if (headings.length > 0) {
+                                const h = headings[headings.length - 1];
+                                if (!seenTexts.has(h)) {
+                                    breadcrumbs.unshift(h);
+                                    seenTexts.add(h);
+                                }
+                            }
+                            
+                            // Check for data-attributes (often used in modern frameworks for context)
+                            const dataset = cur.dataset;
+                            const metaKeys = Object.keys(dataset).filter(k => k.match(/name|title|label|item|id/i));
+                            for (let k of metaKeys) {
+                                if (dataset[k] && !seenTexts.has(dataset[k])) {
+                                    breadcrumbs.unshift(dataset[k]);
+                                    seenTexts.add(dataset[k]);
+                                }
+                            }
+                            
+                            cur = cur.parentElement;
+                        }
+                        
+                        return breadcrumbs.join(" > ");
+                    };
+
+                    const context = getContextBreadcrumbs(el);
+                    return {selector: uniqueSelector, context: context};
+                """, script_arg)
+                
+                selector = js_result.get("selector", "")
+                context_text = js_result.get("context", "")
+            except Exception:
+                selector = f"xpath://{tag}"
+                context_text = ""
+                pass
+            
             # Generate unique ID
             unique_str = f"{tag}_{attrs.get('id', '')}_{attrs.get('class', '')}_{text[:20]}_{index}"
             element_id = hashlib.md5(unique_str.encode()).hexdigest()[:12]
-            
-            # Build CSS selector
-            if attrs.get("id"):
-                selector = f"#{attrs['id']}"
-            elif attrs.get("class"):
-                classes = attrs["class"].split()[0]  # Use first class
-                selector = f"{tag}.{classes}"
-            else:
-                selector = f"{tag}:nth-of-type({index + 1})"
             
             return ElementNode(
                 id=element_id,
@@ -306,6 +482,7 @@ class DOMMapper:
                 is_visible=is_visible,
                 is_interactive=is_interactive,
                 element_type=element_type,
+                context_text=context_text,
             )
         except Exception:
             return None

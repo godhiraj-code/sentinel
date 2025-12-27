@@ -110,13 +110,15 @@ class HeuristicBrain(BrainInterface):
         if target.text:
             elem_text = (elem.text or "").lower()
             target_text = target.text.lower()
-            if target_text in elem_text:
+            
+            # Direct match or partial match
+            if target_text in elem_text or elem_text in target_text:
                 score += 0.5
             
             # Check attributes for text match as well
             for attr in ["aria-label", "title", "placeholder", "name"]:
                 attr_val = elem.attributes.get(attr, "").lower()
-                if attr_val and target_text in attr_val:
+                if attr_val and (target_text in attr_val or attr_val in target_text):
                     score += 0.4
 
         # 3. Explicit ID match
@@ -135,14 +137,88 @@ class HeuristicBrain(BrainInterface):
             if target.role.lower() == elem_role:
                 score += 0.4
 
+        # 6. Semantic Context match (NLP-style overlap)
+        # 6a. Explicit Context Hint match (High Precision)
+        if step.context_hint and elem.context_text:
+            context_hint_lower = step.context_hint.lower()
+            if context_hint_lower in elem.context_text.lower():
+                score += 0.8  # Strong discriminator for grid item disambiguation
+        
+        # 6b. Generic Description overlap (NLP-style)
+        if step.description and elem.context_text:
+             context_score = self._score_context_relevance(step.description, elem.context_text)
+             # Boost context score weight - it should be the primary tie-breaker
+             score += (context_score * 1.5)
+             
         # Enhanced loop prevention:
-        # Penalize elements that have been targeted recently.
-        # The penalty is higher if the same element was targeted multiple times.
         if history:
             recent_targets = [d.target for d in history[-10:] if d.target]
             target_count = recent_targets.count(elem.selector)
             if target_count > 0:
-                # Significant penalty to force trying something else
-                score -= (0.4 + (target_count * 0.1))
+                # Scalable penalty
+                score -= (0.5 * target_count)
         
-        return max(0, min(1.0, score))
+        # RETURN UNCLAMPED: Important for sorting tie-breakers
+        return max(0, score)
+    
+    def _score_context_relevance(self, goal_description: str, element_context: str) -> float:
+        """
+        Advanced semantic relevance scoring.
+        Uses weighted token overlap and handling for common naming conventions.
+        """
+        if not element_context or not goal_description:
+            return 0.0
+            
+        def tokenize(text: str) -> List[str]:
+            # Normalize and split while preserving technical symbols
+            text = text.lower()
+            # Catch alphanumeric sequences including technical chars like - and .
+            raw_tokens = re.findall(r'[a-z0-9\-\.]+', text)
+            
+            return raw_tokens
+            
+            stop_words = {
+                "click", "type", "verify", "navigate", "wait", "check", "select", "press",
+                "the", "a", "an", "in", "on", "at", "for", "with", "to", "of", "by", "from",
+                "button", "link", "input", "field", "text", "page", "site", "app", "recent", "insights",
+                "is", "are", "be", "was", "were", "and", "or", "but"
+            }
+            
+            combined = set(raw_tokens) | set(compounds)
+            return [t for t in combined if len(t) > 2 and t not in stop_words]
+
+        goal_tokens = tokenize(goal_description)
+        context_tokens = tokenize(element_context)
+        
+        if not goal_tokens:
+            return 0.0
+            
+        common_matches = [t for t in goal_tokens if t in context_tokens]
+        
+        if not common_matches:
+            return 0.0
+            
+        # Calculate score based on keyword "significance" 
+        # (Longer words and words with digits/symbols are usually more significant identifiers)
+        score = 0.0
+        for token in common_matches:
+            # Base significance from length
+            weight = 0.1
+            if len(token) > 8:
+                weight += 0.1
+            if len(token) > 12:
+                weight += 0.1
+            
+            # Boost for mixed alpha-numeric (likely product IDs, versions, or specific slugs)
+            if any(c.isdigit() for c in token) and any(c.isalpha() for c in token):
+                weight += 0.1
+                
+            # Boost for compound segments
+            if "-" in token or "_" in token:
+                weight += 0.1
+                
+            score += weight
+            
+        # Context boost capped to avoid overshadowing direct text matches entirely
+        # but high enough to be the definitive tie-breaker for identical text labels.
+        return min(0.7, 0.2 + score)

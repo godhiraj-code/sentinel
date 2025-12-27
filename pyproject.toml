@@ -1,11 +1,11 @@
 [project]
 name = "the-sentinel"
-version = "0.1.0"
+version = "0.3.0"
 description = "Autonomous web testing agent for untestable environments - Shadow DOMs, Canvas, and Bot-protected sites"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Dhiraj Das", email = "contact@dhirajdas.dev"}
+    {name = "Dhiraj Das", email = "dhirajdas.666@gmail.com"}
 ]
 requires-python = ">=3.9"
 classifiers = [
@@ -45,9 +45,9 @@ dependencies = [
     "visual-guard>=0.1.0",
     
     # Action Layer  
-    "waitless>=0.1.0",
+    "waitless>=0.3.2",
     "selenium-teleport>=0.1.0",
-    "sb-stealth-wrapper>=0.2.0",
+    "sb-stealth-wrapper>=0.3.0",
     
     # Validation Layer
     "project-vandal>=0.2.0",

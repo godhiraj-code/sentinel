@@ -242,37 +242,44 @@ class VisualAnalyzer:
         return False, ""
     
     def _has_captcha(self) -> Tuple[bool, str]:
-        """Check for captcha challenges with reduced false positives."""
+        """Check for captcha challenges with high performance and accuracy."""
         try:
-            page_source = self.driver.page_source.lower()
+            script = """
+            const highPatterns = ['recaptcha', 'hcaptcha', 'g-recaptcha', 'cf-turnstile', 'arkose'];
             
-            # High confidence patterns - block immediately
-            for pattern in self.CAPTCHA_PATTERNS_HIGH:
-                if pattern in page_source:
-                    return True, f"Captcha detected ({pattern})"
+            // 1. Check for Captcha scripts
+            const scripts = Array.from(document.querySelectorAll('script'));
+            for (const s of scripts) {
+                const src = s.src || "";
+                if (highPatterns.some(p => src.includes(p))) {
+                    return {blocked: true, reason: 'Captcha script: ' + src.substring(0, 50)};
+                }
+            }
+
+            // 2. Check for interactive Captcha elements (iframes)
+            const iframes = Array.from(document.querySelectorAll('iframe'));
+            for (const f of iframes) {
+                const src = f.src.toLowerCase();
+                const title = f.title.toLowerCase();
+                if (highPatterns.some(p => src.includes(p) || title.includes(p))) {
+                    return {blocked: true, reason: 'Captcha iframe'};
+                }
+            }
             
-            # Medium confidence patterns - need to verify in visible text
-            for pattern in self.CAPTCHA_PATTERNS_MEDIUM:
-                if pattern in page_source:
-                    # Double-check: is this in a visible element?
-                    try:
-                        visible_text = self.driver.execute_script(
-                            "return document.body.innerText.toLowerCase();"
-                        )
-                        if pattern in visible_text:
-                            return True, f"Captcha detected ({pattern})"
-                    except:
-                        pass
+            // 3. Check for specific Captcha text (medium confidence)
+            const text = document.body.innerText.toLowerCase();
+            const mediumPatterns = ["verify you're human", "not a robot", "security check required"];
+            for (const p of mediumPatterns) {
+                if (text.includes(p) && text.length < 5000) { // Limit text-heavy false positives
+                    return {blocked: true, reason: 'Captcha text'};
+                }
+            }
             
-            # Check for iframe-based captchas (high confidence only)
-            iframes = self.driver.find_elements("tag name", "iframe")
-            for iframe in iframes:
-                src = iframe.get_attribute("src") or ""
-                title = iframe.get_attribute("title") or ""
-                
-                for pattern in self.CAPTCHA_PATTERNS_HIGH:
-                    if pattern in src.lower() or pattern in title.lower():
-                        return True, f"Captcha iframe detected ({pattern})"
+            return {blocked: false};
+            """
+            result = self.driver.execute_script(script)
+            if result and result.get('blocked'):
+                return True, result.get('reason')
         except Exception:
             pass
         

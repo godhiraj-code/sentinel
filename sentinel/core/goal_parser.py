@@ -25,11 +25,12 @@ class GoalStep:
     action: str  # click, type, verify, navigate, scroll
     target: TargetSpec
     value: Optional[str] = None  # Text to type or verify
+    context_hint: Optional[str] = None  # Context keyword (e.g. 'pytest-mockllm')
     description: str = ""  # Natural language description of this step
     is_completed: bool = False
 
     def __repr__(self) -> str:
-        return f"GoalStep(action='{self.action}', target={self.target}, value={self.value})"
+        return f"GoalStep(action='{self.action}', target={self.target}, value={self.value}, context='{self.context_hint}')"
 
 @dataclass
 class ParsedGoal:
@@ -57,15 +58,9 @@ class RegexGoalParser:
     """Parses natural language goals into a sequence of GoalSteps."""
 
     def parse(self, goal: str) -> ParsedGoal:
-        """Parse a goal string into structured steps."""
-        # 1. Split exclusively by "then" or "and then" first (strongest separators)
+        # ... (splitting logic remains same)
         step_texts = re.split(r'\s+(?:and\s+)?then\s+', goal, flags=re.IGNORECASE)
-        
-        # 2. If only one chunk, try splitting by "and" if it seems to separate actions
-        # Avoid splitting "input and label" or "id X and class Y"
-        # We look for "and [VERB]"
         if len(step_texts) == 1:
-            # Split only if "and" is followed by an action word
             step_texts = re.split(r'\s+and\s+(?=click|type|enter|input|verify|navigate|go|open)', goal, flags=re.IGNORECASE)
 
         parsed_steps = []
@@ -74,64 +69,73 @@ class RegexGoalParser:
             if step:
                 parsed_steps.append(step)
         
-        # If no steps parsed but string isn't empty, create a generic search/click step
         if not parsed_steps and goal.strip():
             parsed_steps.append(self._parse_single_step(f"achieve {goal}"))
 
         return ParsedGoal(raw_goal=goal, steps=parsed_steps)
 
     def _parse_single_step(self, text: str) -> Optional[GoalStep]:
-        """Parse a single clause into a GoalStep."""
+        """Parse a single clause into a GoalStep with context extraction."""
         text_lower = text.lower()
+        context_hint = None
         
+        # Extract context keyword (X for Y, X in Y)
+        context_match = re.search(r"(.*?)\s+(for|in|associated with|near)\s+['\"]?([^'\"]+)['\"]?", text, re.IGNORECASE)
+        if context_match:
+            base_text = context_match.group(1)
+            context_hint = context_match.group(3).strip()
+            # We'll use the base_text for further parsing, but keep full text in description
+        else:
+            base_text = text
+
         # 1. VERIFY patterns
-        verify_match = re.search(r"verify\s+(?:that\s+)?(?:the\s+)?(?:text|title|heading)?\s*['\"]?([^'\"]+)['\"]?\s*(?:exists|appears|is visible)?", text, re.IGNORECASE)
+        verify_match = re.search(r"verify\s+(?:that\s+)?(?:the\s+)?(?:text|title|heading)?\s*['\"]?([^'\"]+)['\"]?\s*(?:exists|appears|is visible)?", base_text, re.IGNORECASE)
         if verify_match:
             return GoalStep(
                 action="verify",
                 target=TargetSpec(),
                 value=verify_match.group(1).strip(),
+                context_hint=context_hint,
                 description=text
             )
 
         # 2. TYPE patterns
-        # "Type 'HelloWorld' in the input"
-        type_match = re.search(r"(?:type|enter|input)\s+['\"]([^'\"]+)['\"]\s+(?:in|into|on|the)?\s*(.*?)$", text, re.IGNORECASE)
+        type_match = re.search(r"(?:type|enter|input)\s+['\"]([^'\"]+)['\"]\s+(?:in|into|on|the)?\s*(.*?)$", base_text, re.IGNORECASE)
         if type_match:
             return GoalStep(
                 action="type",
                 target=self._parse_target(type_match.group(2)),
                 value=type_match.group(1),
+                context_hint=context_hint,
                 description=text
             )
 
         # 3. CLICK patterns
-        # "Click the 'Login' button"
-        click_match = re.search(r"click\s+(?:the\s+)?(.*?)$", text, re.IGNORECASE)
+        click_match = re.search(r"click\s+(?:the\s+)?(.*?)$", base_text, re.IGNORECASE)
         if click_match:
             return GoalStep(
                 action="click",
                 target=self._parse_target(click_match.group(1)),
+                context_hint=context_hint,
                 description=text
             )
 
         # 4. NAVIGATE patterns
-        nav_match = re.search(r"(?:navigate|go|open)\s+(?:to\s+)?(https?://\S+)", text, re.IGNORECASE)
+        nav_match = re.search(r"(?:navigate|go|open)\s+(?:to\s+)?(https?://\S+)", base_text, re.IGNORECASE)
         if nav_match:
             return GoalStep(
                 action="navigate",
                 target=TargetSpec(),
                 value=nav_match.group(1),
+                context_hint=context_hint,
                 description=text
             )
 
-        # 5. Generic Fallback - Assume the whole text is a target to click (e.g. "Login")
-        words = text.split()
+        # 5. Generic Fallback
+        words = base_text.split()
         if words:
-            # If the first word is a common automation verb not caught by specific regex
-            # Or just any word like "Login", "Submit"
-            target = self._parse_target(text)
-            return GoalStep(action="click", target=target, description=text)
+            target = self._parse_target(base_text)
+            return GoalStep(action="click", target=target, context_hint=context_hint, description=text)
 
         return None
 

@@ -11,6 +11,14 @@
 
 The Sentinel is a unified autonomous web testing framework that combines the power of 10+ specialized automation libraries into a single, intelligent agent. It uses a **Sense → Decide → Act** loop to navigate web applications and achieve goals without explicit scripting.
 
+**Now featuring (v0.3.0):**
+- **Waitless Engine**: Automatic handling of complex animations.
+- **Adaptive Stealth**: Automatic pivot to UC mode when bot detection is triggered.
+- **Smart Click**: Human-like mouse trajectories for behavioral bypass.
+- **Unified JS Mapper**: Vectorized element extraction (100x sensing speed).
+- **Goal Parser**: Structured, multi-step goal execution.
+- **Privacy-First Intelligence**: Local SLM support.
+
 ---
 
 ## 🎯 What Makes The Sentinel Different?
@@ -20,7 +28,7 @@ The Sentinel is a unified autonomous web testing framework that combines the pow
 | Write explicit selectors | Agent finds elements autonomously |
 | Hardcode wait times | Automatic UI stability detection |
 | Fail on DOM changes | **Self-healing** element recovery |
-| Detect bot protection | Built-in stealth mode |
+| Detect bot protection | **Adaptive Stealth Pivot** & Real challenge resolution |
 | Manual debugging | Flight recorder with **multi-state screenshots** |
 | Goal Verification | **Multi-step goal parsing** & rigorous assertion |
 | Cloud-only AI | **Local SLM support** (offline, privacy-first) |
@@ -62,11 +70,11 @@ sentinel explore "https://demo.playwright.dev/todomvc/" "Add 'Buy milk' to the l
 # Limit exploration steps (useful for quick tests)
 sentinel explore "https://example.com" "Click the login button" --max-steps 10
 
-# Use stealth mode for protected sites (enabled by default)
-sentinel explore "https://example.com/login" "Login with test credentials" --stealth
+# Start in high-performance mode (will pivot to stealth if blocked)
+sentinel explore "https://demo.playwright.dev/todomvc/" "Add 'Hello' to the list"
 
-# Disable stealth mode for faster execution on trusted sites
-sentinel explore "https://demo.playwright.dev/todomvc/" "Add 'Hello' to the list" --no-stealth
+# Force stealth mode from the start
+sentinel explore "https://amazon.com" "Search for gaming mice" --stealth
 
 # Run in headless mode (for CI/CD)
 sentinel explore "https://example.com" "Submit the form" --headless --max-steps 20
@@ -92,7 +100,7 @@ from sentinel import SentinelOrchestrator
 agent = SentinelOrchestrator(
     url="https://demo.playwright.dev/todomvc/",
     goal="Type 'Buy milk', then click 'Add', and finally verify 'Buy milk' exists",
-    stealth_mode=True,
+    stealth_mode=False,     # Starts fast, pivots to stealth only if needed
     max_steps=20
 )
 
@@ -178,7 +186,7 @@ The Sentinel is built as a **Master Orchestrator** that unifies specialized auto
 SentinelOrchestrator(
     url="https://example.com",       # Target URL
     goal="Click the login button",   # Natural language goal
-    stealth_mode=True,               # Enable bot evasion (default: True)
+    stealth_mode=False,              # Adaptive: False=Fast+Pivot, True=Forced Stealth
     headless=False,                  # Run headlessly (default: False)
     training_mode=False,             # Use mock LLM (free, default: False)
     max_steps=50,                    # Max exploration steps (default: 50)

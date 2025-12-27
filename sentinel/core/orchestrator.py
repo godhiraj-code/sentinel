@@ -8,6 +8,7 @@ autonomous web exploration and validation.
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 from datetime import datetime
+import re
 
 from sentinel.core.driver_factory import create_driver, StealthDriverManager, WebDriverType
 from sentinel.core.goal_parser import RegexGoalParser, ParsedGoal, GoalStep
@@ -56,7 +57,7 @@ class SentinelConfig:
     """Configuration for the Sentinel orchestrator."""
     url: str
     goal: str
-    stealth_mode: bool = True
+    stealth_mode: bool = False
     headless: bool = False
     training_mode: bool = False
     max_steps: int = 50
@@ -100,7 +101,7 @@ class SentinelOrchestrator:
         self,
         url: str,
         goal: str,
-        stealth_mode: bool = True,
+        stealth_mode: bool = False,
         headless: bool = False,
         training_mode: bool = False,
         max_steps: int = 50,
@@ -196,16 +197,23 @@ class SentinelOrchestrator:
                 stability_mode=self.config.stability_mode,
             )
         
+        # Initialize FlightRecorder first so others can use it
+        self._recorder = FlightRecorder(output_dir=self.config.report_dir)
+        
         # Initialize layers
         self._dom_mapper = DOMMapper(self._driver)
         self._visual_analyzer = VisualAnalyzer(self._driver)
-        self._executor = ActionExecutor(self._driver, timeout=self.config.timeout)
+        self._executor = ActionExecutor(
+            self._driver, 
+            timeout=self.config.timeout,
+            stealth_manager=self._stealth_manager,
+            recorder=self._recorder
+        )
         self._brain = DecisionEngine(
             mock_mode=self.config.training_mode,
             brain_type=self.config.brain_type,
             model_path=self.config.model_name
         )
-        self._recorder = FlightRecorder(output_dir=self.config.report_dir)
         
         self._initialized = True
     
@@ -240,6 +248,13 @@ class SentinelOrchestrator:
                 # Wait for target element if class is specified in goal
                 self._wait_for_target_element()
                 
+                # 0. STABILIZE - Ensure world is ready before looking
+                try:
+                    self._wait_for_stability()
+                except Exception:
+                    # Proceed even if stability timeout (best effort)
+                    pass
+                
                 # 1. SENSE - Build world state
                 world_state = self._dom_mapper.get_world_state()
                 is_blocked, reason = self._visual_analyzer.is_blocked()
@@ -251,12 +266,18 @@ class SentinelOrchestrator:
                     self._recorder.capture_screenshot(f"step_{step}_world_state", driver=self._driver)
                 
                 if is_blocked:
-                    # Try to handle blocking element
-                    handled = self._handle_blocked_state(reason)
-                    if not handled:
-                        error_msg = f"Blocked by: {reason}"
-                        break
-                    continue
+                    # 1.5 AUTO-STEALTH: If blocked by Captcha in standard mode, pivot to StealthBot
+                    if "captcha" in reason.lower() and not self.config.stealth_mode:
+                        if self._pivot_to_stealth():
+                            is_blocked, reason = self._visual_analyzer.is_blocked() # Re-check
+                    
+                    if is_blocked:
+                        # Try to handle blocking element (Captchas, Modals, etc.)
+                        handled = self._handle_blocked_state(reason)
+                        if not handled:
+                            error_msg = f"Blocked by: {reason}"
+                            break
+                        continue
                 
                 # 2. DECIDE - Choose next action
                 current_step = self._parsed_goal.current_step
@@ -383,6 +404,22 @@ class SentinelOrchestrator:
         
         return False
     
+    def _wait_for_stability(self) -> None:
+        """
+        Wait for the UI to reach a stable state before sensing or after action.
+        
+        Uses the waitless-wrapped driver's native stability check by performing
+        a lightweight poll of the body element.
+        """
+        try:
+            # Re-confirming body exists triggers waitless's automatic 
+            # stability wait if the driver is wrapped.
+            self._driver.find_element("tag name", "body")
+        except Exception:
+            # Fallback if driver is in a weird state
+            import time
+            time.sleep(0.5)
+
     def _execute_and_verify(self, step_idx: int, decision: Decision, goal_step: GoalStep) -> bool:
         """
         Execute an action and verify it had the intended effect.
@@ -392,27 +429,50 @@ class SentinelOrchestrator:
         before_url = self._driver.current_url
         
         # 2. Execute Action
+        # Try standard execution first
         success = self._executor.execute(decision)
         self._recorder.log_action_result(step_idx, success)
         
         if not success:
             return False
             
-        # 3. Capture AFTER state
+        # 3. Verify Effect (Wait for stability)
+        try:
+            self._wait_for_stability()
+        except Exception:
+            pass
+            
+        # 4. Check for state change
         after_state = self._dom_mapper.get_page_snapshot()
         after_url = self._driver.current_url
         
+        # If state didn't change and it was a click, RETRY with JS
+        if before_state == after_state and before_url == after_url and decision.action == "click":
+             print(f"DEBUG: Click had no effect. Retrying with JS Force...")
+             success = self._executor.execute(decision, force_js=True)
+             if success:
+                 # Re-wait if JS click worked
+                 try:
+                    self._wait_for_stability()
+                 except: pass
+                 after_state = self._dom_mapper.get_page_snapshot()
+
         # 4. Immediate logical verification (did something happen?)
         if decision.action == "click":
             # Change is expected: URL change OR DOM change
             if after_url != before_url:
-                self._recorder.log_info("Action verified: URL changed")
+                self._recorder.log_info(f"Action verified: URL changed to {after_url}")
                 return True
+            
             if after_state != before_state:
                 self._recorder.log_info("Action verified: DOM changed")
                 return True
             
-            self._recorder.log_info("Warning: No state change detected after click")
+            # If we reached here, both standard and JS clicks failed to change state.
+            # This is a "Silent Failure". We log it but return False so the loop 
+            # can try a different element or strategy.
+            self._recorder.log_info("Action failed: No state change detected (URL or DOM) after multiple click strategies.")
+            return False
             
         return True
 
@@ -426,7 +486,6 @@ class SentinelOrchestrator:
         When user says "class blog-nudge-button", wait for that element
         to appear in the DOM before proceeding with world state scan.
         """
-        import re
         import time
         
         # Extract class name from goal
@@ -456,18 +515,28 @@ class SentinelOrchestrator:
         return False
     
     def _handle_captcha(self) -> bool:
-        """Handle captcha challenges (delegates to stealth wrapper if available)."""
-        # Captcha handling is best done by the stealth wrapper
-        # This is a placeholder for manual intervention signal
-        self._recorder.log_warning("Captcha detected - manual intervention may be required")
-        return False
+        """
+        Attempt to resolve a captcha challenge using StealthBot.
+        """
+        if hasattr(self, "_stealth_manager") and self._stealth_manager:
+            self._recorder.log_warning("Captcha detected! Invoking StealthBot challenge resolution...")
+            try:
+                # Call the underlying StealthBot challenge handler
+                self._stealth_manager.handle_challenges()
+                self._recorder.log_info("StealthBot challenge resolution complete.")
+                return True
+            except Exception as e:
+                self._recorder.log_error(f"StealthBot challenge resolution failed: {e}")
+                return False
+        else:
+            self._recorder.log_warning("Captcha detected but Stealth mode is not active. Manual intervention required.")
+            return False
     
     def _goal_achieved(self, decisions: List[Decision]) -> bool:
         """
-        Check if the current goal step (or the entire goal) has been achieved.
+        Check if the current goal step has been achieved.
         """
         if not self._parsed_goal:
-            # Fallback for non-structured goals (from Phase 1)
             verify_text = self._extract_verify_text()
             if verify_text and self._text_visible_on_page(verify_text):
                 return True
@@ -475,31 +544,42 @@ class SentinelOrchestrator:
 
         current_step = self._parsed_goal.current_step
         if not current_step:
-            return True # No current step means we are done
+            return True
 
         # 1. Action-specific verification for the CURRENT step
-        is_step_done = False
-        
         if current_step.action == "verify":
             # Just check if the value (text) exists on the page
             if current_step.value and self._text_visible_on_page(current_step.value):
-                is_step_done = True
+                return True
         
         elif current_step.action == "navigate":
             # Check if current URL matches the target value
             if current_step.value and current_step.value in self._driver.current_url:
-                is_step_done = True
+                return True
                 
         elif decisions:
-            # For interaction steps (click, type), we check if the last decision
-            # matched the intended action of the step.
-            last = decisions[-1]
-            if last.action == current_step.action:
-                # We already did logical verification in _execute_and_verify
-                # So if we reached here and last action matches, we count it as done
-                is_step_done = True
+            # For interaction steps (click, type), we are more strict.
+            # We don't mark a click as "done" just because we clicked it.
+            # We check if the NEXT step (if it's a verify) is now true.
+            
+            # If there is a next step and it's a verify step, check it
+            next_step_idx = self._parsed_goal.current_step_index + 1
+            if next_step_idx < len(self._parsed_goal.steps):
+                next_step = self._parsed_goal.steps[next_step_idx]
+                if next_step.action == "verify":
+                    if next_step.value and self._text_visible_on_page(next_step.value):
+                        # The click successfully led to the verify condition!
+                        # We can skip the click step now.
+                        return True
+            
+            # If it's a terminal click (last step), we rely on logical verification
+            # which already happened in _execute_and_verify.
+            if next_step_idx >= len(self._parsed_goal.steps):
+                last = decisions[-1]
+                if last.action == current_step.action:
+                     return True
 
-        return is_step_done
+        return False
     
     def _extract_verify_text(self) -> Optional[str]:
         """
@@ -510,7 +590,6 @@ class SentinelOrchestrator:
         - verify [unquoted text] appears/exists/is visible
         - verify heading [unquoted text]
         """
-        import re
         goal = self.config.goal
         
         # 1. Quoted text (Strongest match)
@@ -531,26 +610,81 @@ class SentinelOrchestrator:
         return None
     
     def _text_visible_on_page(self, text: str) -> bool:
-        """Check if specific text is visible on the page."""
+        """
+        Check if specific text is visible on the page using semantic overlap.
+        """
         try:
-            # Search for the text in the page body
+            # 1. Direct substring check (fast path)
             page_text = self._driver.find_element("tag name", "body").text
-            return text.lower() in page_text.lower()
-        except Exception:
+            page_text_lower = page_text.lower()
+            target_text_lower = text.lower()
+            
+            if target_text_lower in page_text_lower:
+                return True
+            
+            # 2. Semantic Token Overlap (robust path)
+            def get_tokens(s):
+                return set(re.findall(r'[a-z0-9]+', s.lower()))
+            
+            # Use a more targeted stop word list
+            stop_words = {
+                "the", "a", "an", "in", "on", "at", "for", "with", "is", "are", 
+                "appears", "visible", "exists", "contains", "show", "shows"
+            }
+            
+            target_set = get_tokens(text) - stop_words
+            if not target_set:
+                return False
+                
+            # Check if each token exists as a substring in the page content
+            # This handles pluralization ("cassette" matching "cassettes")
+            matches = [t for t in target_set if t in page_text_lower]
+            match_ratio = len(matches) / len(target_set)
+            
+            if match_ratio >= 0.5: 
+                self._recorder.log_info(f"Goal Verification [Semantic]: '{text}' matched via tokens {matches}")
+                return True
+                
+            return False
+        except Exception as e:
+            if hasattr(self, "_recorder") and self._recorder:
+                self._recorder.log_info(f"Verification debug: Semantic check skipped. Target: '{text}'")
             return False
     
+    def _pivot_to_stealth(self) -> bool:
+        """
+        Dynamically relaunch the current session in Stealth mode.
+        """
+        if self._stealth_manager:
+            return True # Already in stealth
+            
+        current_url = self._driver.current_url
+        self._recorder.log_warning(f"Auto-Stealth: Block detected at {current_url}. Pivoting to StealthBot...")
+        
+        # 1. Close standard driver
+        self.close()
+        
+        # 2. Force stealth_mode and re-initialize
+        self.config.stealth_mode = True
+        self._initialize()
+        
+        # 3. Restore URL
+        self._driver.get(current_url)
+        return True
+
     def close(self) -> None:
-        """Clean up resources."""
-        # Clean up stealth manager if used
+        """Release resources."""
+        # Clean up stealth manager (this also quits the driver)
         if self._stealth_manager:
             try:
                 self._stealth_manager.__exit__(None, None, None)
             except Exception:
                 pass
             self._stealth_manager = None
+            self._driver = None # Manager already quit it
         
         # Clean up standard driver
-        if self._driver and not self._stealth_manager:
+        if self._driver:
             try:
                 self._driver.quit()
             except Exception:
