@@ -1,27 +1,72 @@
 {
   "title": "Glow Test Report",
-  "generated_at": "2025-12-26 19:21:58",
-  "duration": 2.076955,
+  "generated_at": "2025-12-27 07:40:03",
+  "duration": 32.793597,
   "summary": {
-    "passed": 2,
+    "passed": 7,
     "failed": 0,
     "skipped": 0,
-    "total": 2
+    "total": 7
   },
   "tests": [
     {
-      "nodeid": "tests/unit/test_executor_healing.py::test_executor_js_fallback",
+      "nodeid": "tests/unit/test_visual_agent.py::TestVisualAgentMock::test_init_with_mock",
       "outcome": "passed",
-      "duration": 1.0068287000012788,
+      "duration": 0.00013749999925494194,
       "longrepr": null,
       "sections": [],
       "steps": [],
       "screenshots": []
     },
     {
-      "nodeid": "tests/unit/test_executor_healing.py::test_executor_stale_recovery",
+      "nodeid": "tests/unit/test_visual_agent.py::TestVisualAgentMock::test_describe_state_mock",
       "outcome": "passed",
-      "duration": 1.0047205999999278,
+      "duration": 0.0007410000034724362,
+      "longrepr": null,
+      "sections": [],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/unit/test_visual_agent.py::TestVisualAgentMock::test_describe_state_missing_file",
+      "outcome": "passed",
+      "duration": 0.00018350000027567148,
+      "longrepr": null,
+      "sections": [],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/unit/test_visual_agent.py::TestVisualAgentMock::test_find_element_mock",
+      "outcome": "passed",
+      "duration": 0.0016923000002861954,
+      "longrepr": null,
+      "sections": [],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/unit/test_visual_agent.py::TestVisualAgentMock::test_verify_action_mock",
+      "outcome": "passed",
+      "duration": 0.0020321999982115813,
+      "longrepr": null,
+      "sections": [],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/unit/test_visual_agent.py::TestVisualAgentAutoDetect::test_auto_detect_falls_back_to_moondream",
+      "outcome": "passed",
+      "duration": 32.610198400005174,
+      "longrepr": null,
+      "sections": [],
+      "steps": [],
+      "screenshots": []
+    },
+    {
+      "nodeid": "tests/unit/test_visual_agent.py::TestVisualElement::test_visual_element_creation",
+      "outcome": "passed",
+      "duration": 0.0002449999956297688,
       "longrepr": null,
       "sections": [],
       "steps": [],
@@ -33,6 +78,14 @@
     "Platform": "win32"
   },
   "history": [
+    {
+      "id": 7,
+      "timestamp": "2025-12-27T07:40:03.022955",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 32.793597
+    },
     {
       "id": 6,
       "timestamp": "2025-12-26T19:21:58.615437",

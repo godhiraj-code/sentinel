@@ -64,6 +64,7 @@ class SentinelConfig:
     report_dir: str = "./sentinel_reports"
     brain_type: str = "auto"
     model_name: Optional[str] = None
+    use_vision: bool = False  # Enable VLM visual analysis
 
 
 class SentinelOrchestrator:
@@ -102,6 +103,7 @@ class SentinelOrchestrator:
         report_dir: str = "./sentinel_reports",
         brain_type: str = "auto",
         model_name: Optional[str] = None,
+        use_vision: bool = False,
     ):
         """
         Initialize the Sentinel orchestrator.
@@ -109,6 +111,7 @@ class SentinelOrchestrator:
         Args:
             brain_type: Strategy for brain selection ("auto", "heuristic", "cloud", "local")
             model_name: Specific model name/path (e.g. "gpt-4", "c:/models/phi3.gguf")
+            use_vision: Enable VLM-based visual analysis for element detection
         """
         self.config = SentinelConfig(
             url=url,
@@ -121,12 +124,14 @@ class SentinelOrchestrator:
             report_dir=report_dir,
             brain_type=brain_type,
             model_name=model_name,
+            use_vision=use_vision,
         )
         
         self._driver: Optional[WebDriverType] = None
         self._stealth_manager: Optional[StealthDriverManager] = None
         self._dom_mapper: Optional[DOMMapper] = None
         self._visual_analyzer: Optional[VisualAnalyzer] = None
+        self._visual_agent = None  # Lazy-loaded VisualAgent for VLM
         self._executor: Optional[ActionExecutor] = None
         self._brain: Optional[DecisionEngine] = None
         self._recorder: Optional[FlightRecorder] = None

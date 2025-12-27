@@ -5,7 +5,7 @@ All notable changes to The Sentinel will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] - 2025-12-26
+## [0.2.0] - 2025-12-27
 
 ### Added
 - **Local Intelligence**: Integrated `LocalBrain` via `llama-cpp-python` for privacy-first, offline SLM support (Phi-3, Mistral).
@@ -13,11 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Branding Refresh**: Aligned the project as "The Selenium of the AI Era."
 - **Self-Healing Actions**: `ActionExecutor` now re-resolves stale elements and uses JavaScript fallback for intercepted clicks.
 - **Vision Foundation**: Created `VisualAgent` base class for future VLM integration.
+- **VLM Integration**: Full `VisualAgent` implementation with Moondream2, OpenAI, and mock backends.
+  - `describe_state()`: Analyze screenshots and describe UI
+  - `find_element()`: Locate elements by natural language description
+  - `verify_action()`: Compare before/after screenshots to verify action success
 
 ### Updated
 - **Core Dependencies**: Updated `sb-stealth-wrapper` (0.3.0), `waitless` (0.3.2), and `selenium-chatbot-test` (0.2.0).
 - **Selector Management**: Improved reliability via updated `waitless` stabilization signals.
 - **Element Finding**: Added `WebDriverWait` with `expected_conditions` for smarter element resolution.
+- **Orchestrator**: Added `use_vision` parameter to enable VLM-based visual analysis.
 
 ---
 
