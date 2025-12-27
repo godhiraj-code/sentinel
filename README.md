@@ -31,13 +31,23 @@ The Sentinel is a unified autonomous web testing framework that combines the pow
 
 ### Installation
 
+While we prepare for the official PyPI release, you can install The Sentinel directly from source:
+
+**Option 1: Local Development (Recommended)**
 ```bash
-pip install the-sentinel
+git clone https://github.com/godhiraj-code/sentinel.git
+cd sentinel
+pip install -e "."
 ```
 
-Or install with all features:
+**Option 2: Direct from GitHub**
 ```bash
-pip install the-sentinel[full]
+pip install git+https://github.com/godhiraj-code/sentinel.git
+```
+
+**Option 3: Full Installation (with ML features)**
+```bash
+pip install ".[full]"
 ```
 
 ### CLI Usage
