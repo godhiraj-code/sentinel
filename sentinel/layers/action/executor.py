@@ -458,6 +458,18 @@ class ActionExecutor:
         import time
 
         try:
+            # Check if it's a fallback selector (from YouTube mapper)
+            if selector.startswith("fallback: "):
+                text_target = selector.replace("fallback: ", "").strip()
+                # Use robust XPath text search
+                try:
+                    return self.driver.find_element("xpath", f"//*[contains(text(), '{text_target}')]")
+                except Exception:
+                    # Try searching in shadow doms via lumos if available
+                    if hasattr(self.driver, "find_shadow_text"):
+                        return self.driver.find_shadow_text(text_target)
+                    return None
+
             # Check if it's a shadow path (contains >>)
             if ">>" in selector and hasattr(self.driver, "find_shadow"):
                 return self.driver.find_shadow(selector, timeout=self.timeout)

@@ -12,7 +12,7 @@ console = Console()
 
 
 @click.group()
-@click.version_option(version="0.1.0", prog_name="sentinel")
+@click.version_option(version="0.3.0", prog_name="sentinel")
 def cli():
     """🛡️ The Sentinel - Autonomous Web Testing Agent
     
@@ -257,7 +257,7 @@ def version():
         from sentinel import __version__
         console.print(f"The Sentinel v{__version__}")
     except ImportError:
-        console.print("The Sentinel v0.2.0")
+        console.print("The Sentinel v0.3.0")
 
 
 @cli.command()

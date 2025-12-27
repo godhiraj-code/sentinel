@@ -119,37 +119,54 @@ class FlightRecorder:
         ))
     
     def log_decision(self, step: int, decision: "Decision") -> None:
-        """Log a decision."""
+        """Log a decision with human-friendly context."""
+        # Create a more user-friendly message
+        action_verb = "clicking" if decision.action == "click" else "typing into" if decision.action == "type" else decision.action
+        display_target = decision.target[:40] + "..." if len(decision.target) > 40 else decision.target
+        
+        message = f"🤖 Agent decided to {decision.action} on '{display_target}'"
+        if decision.reasoning:
+            # Clean up reasoning for the main timeline
+            short_reason = decision.reasoning.split('.')[0]
+            message += f" because {short_reason.lower()}"
+
         self.entries.append(LogEntry(
             timestamp=datetime.now(),
             step=step,
             event_type="decision",
-            message=f"Decision: {decision.action} on {decision.target[:30]}",
+            message=message,
             data=decision.to_dict(),
         ))
         
         if self._glow:
             try:
-                self._glow.step(f"Step {step}: {decision.action} - {decision.reasoning}")
+                self._glow.step(f"Step {step}: {message}")
             except Exception:
                 pass
     
     def log_action_result(self, step: int, result: Any, error: Optional[str] = None) -> None:
-        """Log an action result."""
-        # Handle ActionResult object or raw bool
+        """Log an action result with human-friendly context."""
         if hasattr(result, "success"):
             success = result.success
             error = result.error or error
-            meta = result.metadata
+            meta = result.metadata or {}
+            action = result.action
+            target = result.target
         else:
             success = bool(result)
             meta = {}
+            action = "action"
+            target = "element"
+
+        status_emoji = "✅" if success else "❌"
+        msg = f"{status_emoji} {action.capitalize()} on '{target[:30]}' "
+        msg += "succeeded" if success else f"failed: {error or 'Unknown error'}"
 
         self.entries.append(LogEntry(
             timestamp=datetime.now(),
             step=step,
             event_type="action",
-            message=f"Action result: {'success' if success else 'failed'}",
+            message=msg,
             data={"success": success, "error": error, "meta": meta},
         ))
     

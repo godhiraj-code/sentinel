@@ -107,6 +107,13 @@ class DOMMapper:
         """
         elements: List[ElementNode] = []
         
+        # 0. FORCE STABILITY: Ensure page is stable before mapping
+        # Calling find_elements triggers waitless if wrapped
+        try:
+            self.driver.find_elements("tag name", "body")
+        except Exception:
+            pass
+
         # Map standard DOM elements
         elements.extend(self._map_standard_dom())
         
@@ -196,17 +203,17 @@ class DOMMapper:
 
         return Array.from(elements)
             .filter(isVisible)
-            .slice(0, 500)
+            .slice(0, 1000)
             .map(el => {
                 const rect = el.getBoundingClientRect();
                 const attrs = {};
-                for (let attr of ['id', 'class', 'role', 'name', 'href', 'aria-label']) {
+                for (let attr of ['id', 'class', 'role', 'name', 'href', 'aria-label', 'placeholder']) {
                     let val = el.getAttribute(attr);
-                    if (val) attrs[attr] = val.substring(0, 100);
+                    if (val) attrs[attr] = val.substring(0, 150);
                 }
                 return {
                     tag: el.tagName.toLowerCase(),
-                    text: (el.innerText || "").substring(0, 100).trim(),
+                    text: (el.innerText || "").substring(0, 200).trim(),
                     selector: getStableSelector(el),
                     context: "",
                     rect: { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
@@ -226,16 +233,47 @@ class DOMMapper:
         if not self._has_lumos:
             return elements
         
-        # Find all shadow hosts
         try:
-            shadow_hosts = self._find_shadow_hosts()
+            # Execute Deep Shadow DOM Walker
+            # This traverses the entire shadow tree recursively in one go
+            script = self._get_deep_shadow_script()
+            results = self.driver.execute_script(script)
             
-            for host in shadow_hosts:
-                # For each shadow host, try to find interactive elements
-                shadow_elements = self._map_shadow_host_contents(host)
-                elements.extend(shadow_elements)
-        except Exception:
+            for idx, res in enumerate(results):
+                try:
+                     # Generate unique ID
+                    unique_str = f"shadow_{res['tag']}_{res['attributes'].get('id', '')}_{res['text'][:20]}_{idx}"
+                    element_id = hashlib.md5(unique_str.encode()).hexdigest()[:12]
+                    
+                    node = ElementNode(
+                        id=element_id,
+                        tag=res['tag'],
+                        text=res['text'],
+                        selector=res['path'], # Path is the deep selector
+                        shadow_path=res['path'],
+                        attributes=res['attributes'],
+                        bounding_box=res['rect'],
+                        is_visible=True,
+                        is_interactive=True,
+                        element_type="shadow",
+                        context_text=res['context']
+                    )
+                    elements.append(node)
+                except Exception:
+                    continue
+        except Exception as e:
+            print(f"Shadow mapping error: {e}")
             pass
+        
+        # Fallback for YouTube - ALWAYS run this because JS often misses deep text in Polymer
+        if "youtube.com" in self.driver.current_url:
+            print("⚠️ Engaging Python fallback for YouTube stability...")
+            fallback_elements = self._map_youtube_fallback()
+            # De-duplicate based on text and rect
+            existing_texts = {e.text for e in elements}
+            for fe in fallback_elements:
+                if fe.text not in existing_texts and len(fe.text) > 3:
+                    elements.append(fe)
         
         return elements
     
@@ -265,47 +303,271 @@ class DOMMapper:
         except Exception:
             return []
     
-    def _map_shadow_host_contents(self, host: "WebElement") -> List[ElementNode]:
-        """Map interactive elements inside a shadow root."""
-        elements: List[ElementNode] = []
-        
-        # Get the tag name for building the lumos path
-        try:
-            host_tag = host.tag_name
-            host_id = host.get_attribute("id") or ""
-            
-            # Build selector for interactive elements in shadow
-            interactive_selector = ", ".join(self.INTERACTIVE_TAGS)
-            
-            # Use lumos to find elements
-            if hasattr(self.driver, "find_all_shadow"):
-                # Try common patterns
-                for tag in self.INTERACTIVE_TAGS[:5]:  # Limit to avoid slowdown
-                    try:
-                        # Build lumos path pattern
-                        if host_id:
-                            path = f"#{host_id} >> {tag}"
-                        else:
-                            path = f"{host_tag} >> {tag}"
-                        
-                        shadow_elems = self.driver.find_all_shadow(path, timeout=2)
-                        
-                        for idx, elem in enumerate(shadow_elems):
-                            node = self._element_to_node(
-                                elem, 
-                                idx,
-                                shadow_path=path,
-                                element_type="shadow"
-                            )
-                            if node and node.is_visible:
-                                elements.append(node)
-                    except Exception:
-                        continue
-        except Exception:
-            pass
-        
         return elements
     
+    def _get_deep_shadow_script(self) -> str:
+        """
+        Get the JavaScript for recursive Shadow DOM traversal.
+        Returns a list of interactive elements found within shadow roots.
+        """
+        return r"""
+        const results = [];
+        const seen = new Set();
+        const isYoutube = window.location.hostname.includes('youtube');
+        
+        // Blocklist
+        const ignoreTags = new Set(['script', 'style', 'noscript', 'meta', 'link', 'title', 'head', 'html', 'body']);
+        
+        // Standard interactive tags
+        const baseTags = ['a', 'button', 'input', 'select', 'textarea', 'details', 'summary', 'iframe', 'canvas', 'video'];
+        const youtubeTags = ['yt-formatted-string', 'ytd-thumbnail', 'ytd-video-renderer', 'ytd-rich-grid-media', 'span', 'h3', 'div'];
+        
+        const interactiveTags = new Set(baseTags);
+        if (isYoutube) {
+            youtubeTags.forEach(t => interactiveTags.add(t));
+        }
+        
+        function getPath(el) {
+            let path = [];
+            let cur = el;
+            while (cur) {
+                if (cur.nodeType === Node.ELEMENT_NODE) {
+                    let selector = cur.tagName.toLowerCase();
+                    if (cur.id) selector += '#' + cur.id;
+                    else if (cur.classList.length > 0) selector += '.' + cur.classList[0]; 
+                    path.unshift(selector);
+                }
+                if (cur.parentNode && cur.parentNode.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+                    cur = cur.parentNode.host;
+                    path.unshift('>>');
+                } else {
+                    cur = cur.parentNode;
+                }
+            }
+            return path.join(' ').replace(/ >> /g, ' >> ');
+        }
+        
+        function isVisible(el) {
+            const rect = el.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return false;
+            const style = window.getComputedStyle(el);
+            return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+        }
+
+        function processNode(node) {
+            if (!node || seen.has(node)) return;
+            
+            const tag = node.tagName.toLowerCase();
+            if (ignoreTags.has(tag)) return;
+            
+            let shouldMap = false;
+            
+            // 1. Interactive Tag?
+            if (interactiveTags.has(tag)) shouldMap = true;
+            
+            // 2. Interactive Attributes?
+            if (node.hasAttribute('onclick') || node.getAttribute('role') === 'button' || node.getAttribute('role') === 'link') shouldMap = true;
+            
+            // 3. NUCLEAR TEXT CHECK (YouTube Only)
+            // On YouTube, titles are often just text in spans/divs with no interactive roles.
+            if (isYoutube) {
+                const text = (node.innerText || "").trim();
+                // Map logical text blocks
+                if (text.length > 2 && text.length < 150) {
+                     shouldMap = true;
+                }
+                if (node.id === 'video-title') shouldMap = true;
+            }
+            
+            if (shouldMap && isVisible(node)) {
+                seen.add(node);
+                
+                const attrs = {};
+                for (let attr of ['id', 'class', 'role', 'name', 'href', 'title', 'aria-label']) {
+                    let val = node.getAttribute(attr);
+                    if (val) attrs[attr] = val.substring(0, 100);
+                }
+                
+                const rect = node.getBoundingClientRect();
+                
+                results.push({
+                    tag: tag,
+                    text: (node.innerText || "").trim().substring(0, 200),
+                    path: getPath(node),
+                    context: "", 
+                    rect: {x: rect.x, y: rect.y, width: rect.width, height: rect.height},
+                    attributes: attrs
+                });
+            }
+        }
+
+        function findAllElements(root) {
+            if (!root) return;
+            
+            // Direct processing
+            if (root.nodeType === Node.ELEMENT_NODE) {
+                processNode(root);
+                if (root.shadowRoot) {
+                    findAllElements(root.shadowRoot);
+                }
+            }
+
+            // Children processing
+            const children = root.children || root.childNodes;
+            for (let i = 0; i < children.length; i++) {
+                const node = children[i];
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    findAllElements(node);
+                }
+            }
+        }
+        
+        // --- ENTRY POINT ---
+        findAllElements(document.body);
+        
+        // Targeted Re-Entry for YouTube specific hosts (just in case)
+        if (isYoutube) {
+            const hosts = document.querySelectorAll('ytd-app, ytd-masthead, ytd-page-manager, ytd-browse, ytd-search, ytd-video-renderer, ytd-thumbnail');
+            hosts.forEach(host => {
+                if (host.shadowRoot) {
+                    findAllElements(host.shadowRoot);
+                }
+            });
+        }
+
+        return results.slice(0, 1500); 
+        """
+    
+    
+    def _map_youtube_fallback(self) -> List[ElementNode]:
+        """
+        Python-side fallback for YouTube using Lumos, Native Selenium, AND Visual Guard.
+        Includes robust retry logic for hydration handling.
+        """
+        elements = []
+        renderers = []
+        
+        # Retry loop to handle hydration (Layer 3: Resilience)
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                # 1. Try Lumos (Layer 1: Pierce)
+                if hasattr(self.driver, "find_all_shadow"):
+                    print(f"⚡ Lumos Scan (Attempt {attempt+1}/{max_retries})...")
+                    renderers = self.driver.find_all_shadow("ytd-video-renderer")
+                    # Also try specific title spans which might be easier to target
+                    titles = self.driver.find_all_shadow("span#video-title")
+                    if titles:
+                        renderers.extend(titles)
+                
+                # 2. Native Fallback
+                if not renderers:
+                    print(f"⚠️ Native Scan (Attempt {attempt+1}/{max_retries})...")
+                    renderers = self.driver.find_elements("css selector", "ytd-video-renderer, ytd-grid-video-renderer, span#video-title, #video-title")
+                
+                # Validation: Did we find anything REAL?
+                if renderers:
+                    # Check for Stale Elements by accessing one
+                    _ = renderers[0].tag_name
+                    print(f"✅ Found {len(renderers)} potential elements.")
+                    break # Success!
+                
+            except Exception as e:
+                print(f"   -> Scan error: {e}")
+                renderers = [] # Reset to trigger retry
+            
+            # Wait for hydration
+            if attempt < max_retries - 1:
+                print("   -> Hydration wait (1s)...")
+                time.sleep(1.0)
+        
+        # Layer 2: Visual Fallback (If DOM completely failed)
+        if not renderers and VisualGuard:
+            print("👁️ DOM Blind! Engaging VisualGuard (Layer 2)...")
+            return self._map_visual_fallback()
+
+        # Process found DOM elements
+        try:
+            for idx, el in enumerate(renderers):
+                if not el.is_displayed():
+                    continue
+                    
+                text = el.text.strip()
+                # If text is empty, it might be a shadow host. Try getting innerText via JS.
+                if not text:
+                    text = self.driver.execute_script("return arguments[0].innerText || arguments[0].textContent", el).strip()
+                
+                # Still empty? Try attributes.
+                if not text:
+                    text = el.get_attribute("title") or el.get_attribute("aria-label") or ""
+                
+                if text and len(text) > 3:
+                     # Generate unique ID
+                    unique_str = f"yt_fallback_{idx}_{text[:20]}"
+                    element_id = hashlib.md5(unique_str.encode()).hexdigest()[:12]
+                    
+                    print(f"   -> Fallback Candidate: '{text[:40]}...'")
+                    
+                    rect = el.rect
+                    
+                    node = ElementNode(
+                        id=element_id,
+                        tag=el.tag_name,
+                        text=text,
+                        selector=f"fallback: {text[:30]}", 
+                        shadow_path="",
+                        attributes={"class": el.get_attribute("class"), "id": el.get_attribute("id")},
+                        bounding_box=rect,
+                        is_visible=True,
+                        is_interactive=True,
+                        element_type="fallback",
+                        context_text="YouTube Video"
+                    )
+                    elements.append(node)
+        except Exception as e:
+            print(f"YouTube fallback error: {e}")
+            
+        return elements
+
+    def _map_visual_fallback(self) -> List[ElementNode]:
+        """
+        Use VisualGuard to semantic analysis of the screenshot.
+        """
+        elements = []
+        try:
+            # Capture screenshot
+            screenshot_path = f"visual_debug_{int(time.time())}.png"
+            self.driver.save_screenshot(screenshot_path)
+            
+            # Detect text blocks
+            guard = VisualGuard()
+            text_blocks = guard.detect_text_blocks(screenshot_path)
+            
+            for idx, block in enumerate(text_blocks):
+                if len(block.text) < 5: continue
+                
+                element_id = hashlib.md5(f"vis_{idx}_{block.text}".encode()).hexdigest()[:12]
+                node = ElementNode(
+                    id=element_id,
+                    tag="visual-block",
+                    text=block.text,
+                    selector=f"fallback: {block.text}", # ActionExecutor handles this via text search
+                    shadow_path="",
+                    attributes={"confidence": str(block.confidence)},
+                    bounding_box={"x": block.x, "y": block.y, "width": block.width, "height": block.height},
+                    is_visible=True,
+                    is_interactive=True,
+                    element_type="visual",
+                    context_text="Visual Text"
+                )
+                elements.append(node)
+            
+            print(f"👁️ VisualGuard found {len(elements)} items")
+        except Exception as e:
+            print(f"Visual fallback error: {e}")
+            
+        return elements
+
     def _element_to_node(
         self,
         element: "WebElement",
@@ -521,9 +783,14 @@ class DOMMapper:
             elements = self.get_world_state()
             
             # Combine signals
+            # Use URL, element count, and structural signals from top elements
             signals = [url, str(len(elements))]
-            for elem in elements[:10]:
-                signals.append(f"{elem.tag}:{elem.text[:20]}")
+            for elem in elements[:20]: # Check more elements
+                # Use tag and classes as they are more structurally stable than text
+                classes = elem.attributes.get("class", "")
+                # Only use first few chars of text to avoid dynamic updates (timers, etc.)
+                text_len = str(len(elem.text)) 
+                signals.append(f"{elem.tag}:{classes}:{text_len}")
             
             combined = "|".join(signals)
             return hashlib.md5(combined.encode()).hexdigest()

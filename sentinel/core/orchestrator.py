@@ -227,9 +227,9 @@ class SentinelOrchestrator:
         """
         self._initialize()
         self._parsed_goal = self._parser.parse(self.config.goal)
-        self._recorder.log_info(f"Goal parsed into {len(self._parsed_goal.steps)} steps")
+        self._recorder.log_info(f"📍 Goal strategy established: {len(self._parsed_goal.steps)} logical steps identified.")
         for i, step in enumerate(self._parsed_goal.steps):
-            self._recorder.log_info(f"  Step {i+1}: {step}")
+            self._recorder.log_info(f"   Step {i+1}: {step.description or step}")
         
         start_time = datetime.now()
         decisions: List[Decision] = []
@@ -303,7 +303,7 @@ class SentinelOrchestrator:
                 
                 # Check if current goal step is achieved
                 if self._goal_achieved(decisions):
-                    self._recorder.log_info(f"Verified step: {current_step}")
+                    self._recorder.log_info(f"🎯 Step success: {current_step.description or str(current_step)}")
                     self._parsed_goal.next_step()
                     
                     if self._parsed_goal.is_completed:

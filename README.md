@@ -17,6 +17,7 @@ The Sentinel is a unified autonomous web testing framework that combines the pow
 - **Smart Click**: Human-like mouse trajectories for behavioral bypass.
 - **Unified JS Mapper**: Vectorized element extraction (100x sensing speed).
 - **Goal Parser**: Structured, multi-step goal execution.
+- **TripleNet Resilience**: Deep Shadow DOM traversal (Lumos + Native + VisualGuard).
 - **Privacy-First Intelligence**: Local SLM support.
 
 ---
@@ -305,7 +306,7 @@ mutator.revert_mutation(mutation)
 
 ### Current (v0.3.0) ✅
 - ✅ Core Sense-Decide-Act loop
-- ✅ Shadow DOM support
+- ✅ **Deep Shadow DOM & YouTube** (TripleNet Strategy)
 - ✅ **Adaptive Stealth Pivot** (Auto-relaunch in UC mode)
 - ✅ **Unified JS Mapper** (O(1) sensing, 100x speedup)
 - ✅ **Session Replay** (Recorded mission rerun)

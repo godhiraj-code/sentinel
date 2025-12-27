@@ -63,9 +63,7 @@ recordings/
 .env.local
 config.local.yaml
 
-# Local plans and strategy
-ROADMAP_STRATEGY.md
-INTELLIGENCE_UPGRADE_PLAN.md
+# Local config
 
 # Debug and Reproduction
 tests/debug_*.py
@@ -77,5 +75,4 @@ debug_reports/
 downloaded_files/
 
 # Database and state
-reports/*.sqlite
 reports/*.json
