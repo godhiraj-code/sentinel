@@ -1,6 +1,8 @@
 # The Sentinel Technical Guide
 
 > Deep dive into architecture, components, and extensibility
+> 
+> By [Dhiraj Das](https://www.dhirajdas.dev)
 
 ---
 

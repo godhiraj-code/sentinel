@@ -1,6 +1,8 @@
 # The Sentinel User Guide
 
 > Complete guide to using The Sentinel for autonomous web testing
+> 
+> By [Dhiraj Das](https://www.dhirajdas.dev)
 
 ---
 
