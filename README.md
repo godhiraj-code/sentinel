@@ -101,7 +101,9 @@ agent = SentinelOrchestrator(
     url="https://demo.playwright.dev/todomvc/",
     goal="Type 'Buy milk', then click 'Add', and finally verify 'Buy milk' exists",
     stealth_mode=False,     # Starts fast, pivots to stealth only if needed
-    max_steps=20
+    max_steps=20,           # Limit to 20 steps
+    brain_type="auto",      # auto, heuristic, cloud, local
+    stability_mode="relaxed" # relaxed, normal, strict
 )
 
 # Run the agent
@@ -164,17 +166,17 @@ The Sentinel is built as a **Master Orchestrator** that unifies specialized auto
 
 ### Integrated Libraries
 
-| Library | Purpose | Layer |
-|---------|---------|-------|
-| [lumos-shadowdom](https://pypi.org/project/lumos-shadowdom/) | Shadow DOM traversal | Sense |
-| [visual-guard](https://pypi.org/project/visual-guard/) | Visual regression detection | Sense |
-| [waitless](https://pypi.org/project/waitless/) | UI stability (no explicit waits) | Action |
-| [selenium-teleport](https://pypi.org/project/selenium-teleport/) | Session state management | Action |
-| [sb-stealth-wrapper](https://pypi.org/project/sb-stealth-wrapper/) | Bot detection bypass | Action |
-| [project-vandal](https://pypi.org/project/project-vandal/) | UI mutation testing | Validation |
-| [pytest-glow-report](https://pypi.org/project/pytest-glow-report/) | Beautiful HTML reports | Reporting |
-| [pytest-mockllm](https://pypi.org/project/pytest-mockllm/) | LLM mocking for training | Intelligence |
-| [llama-cpp-python](https://pypi.org/project/llama-cpp-python/) | **Local SLM inference** | Intelligence |
+| Library | Version | Purpose | Layer |
+|---------|---------|---------|-------|
+| [waitless](https://pypi.org/project/waitless/) | `>=0.3.2` | UI stability (no explicit waits) | Action |
+| [sb-stealth-wrapper](https://pypi.org/project/sb-stealth-wrapper/) | `>=0.3.0` | Bot detection bypass | Action |
+| [lumos-shadowdom](https://pypi.org/project/lumos-shadowdom/) | `>=0.2.0` | Shadow DOM traversal | Sense |
+| [visual-guard](https://pypi.org/project/visual-guard/) | `>=0.1.0` | Visual regression detection | Sense |
+| [selenium-teleport](https://pypi.org/project/selenium-teleport/) | `>=0.1.0` | Session state management | Action |
+| [project-vandal](https://pypi.org/project/project-vandal/) | `>=0.2.0` | UI mutation testing | Validation |
+| [pytest-glow-report](https://pypi.org/project/pytest-glow-report/) | `>=0.1.0` | Beautiful HTML reports | Reporting |
+| [pytest-mockllm](https://pypi.org/project/pytest-mockllm/) | `>=0.2.0` | LLM mocking for training | Intelligence |
+| [llama-cpp-python](https://pypi.org/project/llama-cpp-python/) | `>=0.2.0` | **Local SLM inference** | Intelligence |
 
 ---
 
@@ -188,10 +190,13 @@ SentinelOrchestrator(
     goal="Click the login button",   # Natural language goal
     stealth_mode=False,              # Adaptive: False=Fast+Pivot, True=Forced Stealth
     headless=False,                  # Run headlessly (default: False)
-    training_mode=False,             # Use mock LLM (free, default: False)
     max_steps=50,                    # Max exploration steps (default: 50)
-    timeout=30,                      # Action timeout in seconds (default: 30)
-    report_dir="./reports"           # Report output directory
+    report_dir="./sentinel_reports", # Report output directory
+    brain_type="auto",               # Intelligence: auto, heuristic, cloud, local
+    model_name=None,                 # Specific model name or path
+    stability_mode="relaxed",        # Waitless: strict, normal, relaxed
+    stability_timeout=15,             # Stability timeout in seconds
+    use_vision=False                 # Enable VLM-based visual analysis
 )
 ```
 
@@ -205,9 +210,11 @@ Options:
   --headless/--headed       Run in headless mode (default: headed)
   --training                Use mock LLM (free mode)
   --max-steps INTEGER       Maximum exploration steps (default: 50)
-  --brain TEXT              Intelligence: auto, heuristic, cloud, local
-  --model TEXT              Model name/path for cloud or local brain
-  --report-dir PATH         Report output directory
+  --brain TEXT              Intelligence Strategy: auto, heuristic, cloud, local
+  --model TEXT              Specific model name (e.g. gpt-4, claude-3) or path
+  --report-dir PATH         Report output directory (default: ./sentinel_reports)
+  --stability-mode TEXT     Stability strictness: strict, normal, relaxed (default: relaxed)
+  --stability-timeout SEC   Waitless stability timeout (default: 15s)
 
 sentinel replay <report_dir> [OPTIONS]
 
@@ -299,25 +306,26 @@ mutator.revert_mutation(mutation)
 ### Current (v0.3.0) ✅
 - ✅ Core Sense-Decide-Act loop
 - ✅ Shadow DOM support
-- ✅ Stealth mode
-- ✅ HTML report generation
-- ✅ Rigorous Goal Verification
+- ✅ **Adaptive Stealth Pivot** (Auto-relaunch in UC mode)
+- ✅ **Unified JS Mapper** (O(1) sensing, 100x speedup)
+- ✅ **Session Replay** (Recorded mission rerun)
 - ✅ **Local SLM integration** (Phi-3, Mistral)
+- ✅ **VLM Foundation** (Moondream2, GPT-4o backends)
 - ✅ **Self-healing actions** (JS fallback)
-- ✅ **Waitless-Native stability** (Zero-delay automation)
-- ✅ **Multi-state Visual Logging**
+- ✅ **Waitless-Native stability**
+- ✅ HTML report generation
 
 ### Next Phase (v0.4.0)
-- 🔄 VLM integration (Moondream, LLaVA)
-- 🔄 Human-in-the-Loop mode
-- 🔄 Visual regression comparison
-- 🔄 Session replay from reports
+- 🔄 **Human-in-the-Loop mode** (Manual intervention for tricky tasks)
+- 🔄 **Visual regression comparison** (Detect UI changes over time)
+- 🔄 **Autonomous VLM Perceptor** (Decision making based *only* on pixels)
+- 🔄 **Session state snapshotting** (Save/Load cookies and storage)
 
 ### Future
 - 🔮 Multi-page flow recording
 - 🔮 Self-healing test generation
-- 🔮 CI/CD integration
-- 🔮 Distributed exploration
+- 🔮 CI/CD integration plugins
+- 🔮 Distributed exploration grid
 
 ---
 
