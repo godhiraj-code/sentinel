@@ -1,19 +1,19 @@
 {
   "title": "Glow Test Report",
-  "generated_at": "2025-12-28 01:51:01",
-  "duration": 280.744319,
+  "generated_at": "2025-12-28 12:59:05",
+  "duration": 22.757307,
   "summary": {
-    "passed": 0,
-    "failed": 1,
+    "passed": 1,
+    "failed": 0,
     "skipped": 0,
     "total": 1
   },
   "tests": [
     {
-      "nodeid": "tests/validation/test_06_youtube.py::test_06_youtube_validation",
-      "outcome": "failed",
-      "duration": 280.5044498999923,
-      "longrepr": "tests\\validation\\test_06_youtube.py:28: in test_06_youtube_validation\n    assert result.success is True, f\"Failed to achieve goal: {goal}\"\nE   AssertionError: Failed to achieve goal: Click the first video title in list AND verify video player loads\nE   assert False is True\nE    +  where False = ExecutionResult(success=False, goal='Click the first video title in list AND verify video player loads', url='https://www.youtube.com/results?search_query=selenium+automation', steps=10, max_steps=10, decisions=[Decision(action='click', target='#button', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.7, metadata={}), Decision(action='click', target='#logo', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.7, metadata={}), Decision(action='click', target='button', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.7, metadata={}), Decision(action='click', target='a', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.7, metadata={}), Decision(action='click', target='html body ytd-app div#content div#masthead-container ytd-masthead#masthead div#container div#start yt-icon-button#guide-button button#button', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.7, metadata={}), Decision(action='click', target='html body.lock-scrollbar ytd-app div#content div#masthead-container ytd-masthead#masthead div#container div#start yt-icon-button#guide-button button#button', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.7, metadata={}), Decision(action='click', target='html body.lock-scrollbar ytd-app div#content div#masthead-container ytd-masthead#masthead div#container div#start ytd-topbar-logo-renderer#logo a#logo', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.7, metadata={}), Decision(action='click', target='html body.lock-scrollbar ytd-app div#content div#masthead-container ytd-masthead#masthead div#container div#center yt-searchbox.ytSearchboxComponentHost div.ytSearchboxComponentInputBox div.ytSearchboxComponentClearButtonWrapper button.ytSearchboxComponentClearButton', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.7, metadata={}), Decision(action='click', target='html body.lock-scrollbar ytd-app div#content div#masthead-container ytd-masthead#masthead div#container div#center yt-searchbox.ytSearchboxComponentHost button.ytSearchboxComponentSearchButton', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.7, metadata={}), Decision(action='click', target='html body.lock-scrollbar ytd-app div#content div#masthead-container ytd-masthead#masthead div#container div#center div#voice-search-button ytd-button-renderer.style-scope yt-button-shape button.yt-spec-button-shape-next', reasoning=\"Matched '' with goal target TargetSpec(text='first video title')\", confidence=0.7, metadata={})], start_time=datetime.datetime(2025, 12, 28, 1, 46, 28, 370438), end_time=datetime.datetime(2025, 12, 28, 1, 51, 1, 387827), report_path='./sentinel_reports/validation_youtube\\\\20251228_014623\\\\report.html', error='Max steps reached without achieving goal').success",
+      "nodeid": "tests/validation/test_01_dhirajdas_dev.py::test_01_dhirajdas_dev_validation",
+      "outcome": "passed",
+      "duration": 22.638393799978076,
+      "longrepr": null,
       "sections": [],
       "steps": [],
       "screenshots": []
@@ -25,84 +25,84 @@
   },
   "history": [
     {
-      "id": 58,
-      "timestamp": "2025-12-28T01:51:01.606133",
-      "passed": 0,
-      "failed": 1,
+      "id": 102,
+      "timestamp": "2025-12-28T12:59:05.329030",
+      "passed": 1,
+      "failed": 0,
       "skipped": 0,
-      "duration": 280.744319
+      "duration": 22.757307
     },
     {
-      "id": 57,
-      "timestamp": "2025-12-28T01:38:04.937578",
+      "id": 101,
+      "timestamp": "2025-12-28T12:55:22.637711",
       "passed": 0,
       "failed": 1,
       "skipped": 0,
-      "duration": 278.158984
+      "duration": 79.403758
     },
     {
-      "id": 56,
-      "timestamp": "2025-12-28T01:32:27.437540",
+      "id": 100,
+      "timestamp": "2025-12-28T12:51:34.218381",
       "passed": 0,
       "failed": 1,
       "skipped": 0,
-      "duration": 276.962134
+      "duration": 112.532929
     },
     {
-      "id": 55,
-      "timestamp": "2025-12-28T01:19:18.233572",
+      "id": 99,
+      "timestamp": "2025-12-28T12:49:47.285991",
       "passed": 0,
       "failed": 1,
       "skipped": 0,
-      "duration": 290.40443
+      "duration": 119.475523
     },
     {
-      "id": 54,
-      "timestamp": "2025-12-28T01:11:36.909245",
+      "id": 98,
+      "timestamp": "2025-12-28T12:46:38.066668",
       "passed": 0,
       "failed": 1,
       "skipped": 0,
-      "duration": 278.371211
+      "duration": 14.602241
     },
     {
-      "id": 53,
-      "timestamp": "2025-12-28T01:05:22.687244",
+      "id": 97,
+      "timestamp": "2025-12-28T12:44:13.083490",
       "passed": 0,
       "failed": 1,
       "skipped": 0,
-      "duration": 46.228605
+      "duration": 113.775041
     },
     {
-      "id": 52,
-      "timestamp": "2025-12-28T00:53:32.080415",
+      "id": 96,
+      "timestamp": "2025-12-28T12:40:43.014063",
       "passed": 0,
       "failed": 1,
       "skipped": 0,
-      "duration": 55.630128
+      "duration": 151.875993
     },
     {
-      "id": 51,
-      "timestamp": "2025-12-28T00:47:39.768847",
+      "id": 95,
+      "timestamp": "2025-12-28T12:31:02.116221",
       "passed": 0,
       "failed": 1,
       "skipped": 0,
-      "duration": 67.43029
+      "duration": 110.885848
     },
     {
-      "id": 50,
-      "timestamp": "2025-12-27T23:48:10.969532",
+      "id": 94,
+      "timestamp": "2025-12-28T12:20:33.222553",
       "passed": 0,
       "failed": 1,
       "skipped": 0,
-      "duration": 56.517372
+      "duration": 77.784831
     },
     {
-      "id": 49,
-      "timestamp": "2025-12-27T23:44:35.324627",
+      "id": 93,
+      "timestamp": "2025-12-28T12:15:49.518954",
       "passed": 0,
       "failed": 1,
       "skipped": 0,
-      "duration": 56.847051
+      "duration": 59.137023
     }
   ]
 }

@@ -76,6 +76,7 @@ class DOMMapper:
     INTERACTIVE_TAGS = [
         "a", "button", "input", "select", "textarea",
         "label", "option", "details", "summary",
+        "h1", "h2", "h3", "h4", "h5", "h6",
     ]
     
     # Attributes that indicate interactivity
@@ -188,20 +189,96 @@ class DOMMapper:
         
         const isVisible = (el) => {
             if (el.checkVisibility) return el.checkVisibility();
-            return el.offsetWidth > 0 && el.offsetHeight > 0;
+            const rect = el.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0;
         };
 
         const getStableSelector = (el) => {
-            if (el.id && !/^\d/.test(el.id)) return '#' + CSS.escape(el.id);
+            if (el.id) {
+                if (!/^\d/.test(el.id)) return '#' + CSS.escape(el.id);
+                return '[id="' + CSS.escape(el.id) + '"]';
+            }
             const dataAttrs = ['data-testid', 'data-id', 'data-automation'];
             for (let attr of dataAttrs) {
                 let val = el.getAttribute(attr);
                 if (val) return '[' + attr + '="' + CSS.escape(val) + '"]';
             }
-            return el.tagName.toLowerCase();
+            
+            // Robust CSS Path Fallback
+            try {
+                const path = [];
+                let cur = el;
+                while (cur && cur.nodeType === Node.ELEMENT_NODE && cur.tagName !== 'HTML') {
+                    let selector = cur.tagName.toLowerCase();
+                    if (cur.id && !/^\d/.test(cur.id)) {
+                        selector += '#' + CSS.escape(cur.id);
+                        path.unshift(selector);
+                        break;
+                    }
+                    
+                    let sibling = cur;
+                    let nth = 1;
+                    while (sibling = sibling.previousElementSibling) {
+                        if (sibling.tagName.toLowerCase() === selector) nth++;
+                    }
+                    selector += `:nth-of-type(${nth})`;
+                    path.unshift(selector);
+                    cur = cur.parentElement;
+                }
+                return path.join(' > ');
+            } catch (e) {
+                return el.tagName.toLowerCase();
+            }
         };
 
-        return Array.from(elements)
+        const getSemanticEnclosure = (el) => {
+            let contextParts = [];
+            let depth = 0;
+            const maxDepth = 10;
+            
+            // 1. Check Preceding Siblings (Proximity Bonding)
+            // Often Titles are siblings just above the button/card
+            let sib = el.previousElementSibling;
+            while (sib && contextParts.length < 5) {
+                const text = (sib.innerText || "").trim();
+                if (text.length > 2 && text.length < 200) {
+                    if (!contextParts.includes(text)) contextParts.push(text);
+                }
+                sib = sib.previousElementSibling;
+            }
+
+            // 2. Check Ancestor Hierarchy (Standard Bonding)
+            let cur = el.parentElement;
+            while (cur && cur.tagName !== 'BODY' && depth < maxDepth) {
+                // Find significant text labels in this container
+                const labels = Array.from(cur.querySelectorAll('h1,h2,h3,h4,h5,h6,strong,b,legend,label,span,p,div'))
+                    .filter(node => {
+                        const text = (node.innerText || "").trim();
+                        return text.length > 2 && text.length < 200 && node !== el && !node.contains(el);
+                    })
+                    .map(node => (node.innerText || "").trim());
+                
+                labels.forEach(l => {
+                    if (!contextParts.includes(l)) contextParts.push(l);
+                });
+                
+                // Also check preceding siblings of the container (Grid Sibling Bonding)
+                let pSib = cur.previousElementSibling;
+                while (pSib && contextParts.length < 10) {
+                    const pText = (pSib.innerText || "").trim();
+                    if (pText.length > 2 && pText.length < 200) {
+                        if (!contextParts.includes(pText)) contextParts.push(pText);
+                    }
+                    pSib = pSib.previousElementSibling;
+                }
+
+                cur = cur.parentElement;
+                depth++;
+            }
+            return contextParts.join(" | ");
+        };
+
+        const results = Array.from(elements)
             .filter(isVisible)
             .slice(0, 1000)
             .map(el => {
@@ -215,11 +292,29 @@ class DOMMapper:
                     tag: el.tagName.toLowerCase(),
                     text: (el.innerText || "").substring(0, 200).trim(),
                     selector: getStableSelector(el),
-                    context: "",
+                    context: getSemanticEnclosure(el),
                     rect: { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
                     attributes: attrs
                 };
             });
+
+        // Add semantic landmarks that might have been missed by strict selector
+        const headers = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+        headers.forEach(h => {
+            if (isVisible(h) && !results.some(r => r.selector === getStableSelector(h))) {
+                 const rect = h.getBoundingClientRect();
+                 results.push({
+                    tag: h.tagName.toLowerCase(),
+                    text: (h.innerText || "").substring(0, 200).trim(),
+                    selector: getStableSelector(h),
+                    context: "Heading",
+                    rect: { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
+                    attributes: { id: h.id, class: h.className }
+                 });
+            }
+        });
+
+        return results;
         """
     
     def _map_shadow_elements(self) -> List[ElementNode]:
@@ -318,8 +413,8 @@ class DOMMapper:
         // Blocklist
         const ignoreTags = new Set(['script', 'style', 'noscript', 'meta', 'link', 'title', 'head', 'html', 'body']);
         
-        // Standard interactive tags
-        const baseTags = ['a', 'button', 'input', 'select', 'textarea', 'details', 'summary', 'iframe', 'canvas', 'video'];
+        // Standard interactive tags + Semantic Landmarks
+        const baseTags = ['a', 'button', 'input', 'select', 'textarea', 'details', 'summary', 'iframe', 'canvas', 'video', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
         const youtubeTags = ['yt-formatted-string', 'ytd-thumbnail', 'ytd-video-renderer', 'ytd-rich-grid-media', 'span', 'h3', 'div'];
         
         const interactiveTags = new Set(baseTags);
@@ -368,16 +463,25 @@ class DOMMapper:
             // 2. Interactive Attributes?
             if (node.hasAttribute('onclick') || node.getAttribute('role') === 'button' || node.getAttribute('role') === 'link') shouldMap = true;
             
-            // 3. NUCLEAR TEXT CHECK (YouTube Only)
-            // On YouTube, titles are often just text in spans/divs with no interactive roles.
-            if (isYoutube) {
-                const text = (node.innerText || "").trim();
-                // Map logical text blocks
-                if (text.length > 2 && text.length < 150) {
-                     shouldMap = true;
+            // 3. TEXT-BASED DISCOVERY (Semantic/Verification Targets)
+            // We need to see text to verify goals (e.g. "Verify the header says...")
+            const textContent = (node.innerText || "").trim();
+            if (textContent.length > 0) {
+                // Always map headers
+                if (/^h[1-6]$/.test(tag)) {
+                    shouldMap = true;
                 }
-                if (node.id === 'video-title') shouldMap = true;
+                // Map significant but concise text blocks (likely verification targets)
+                else if (textContent.length > 2 && textContent.length < 500) {
+                    // Only map if it's a relative leaf (don't map large containers that just happen to have text)
+                    if (node.children.length < 3) {
+                         shouldMap = true;
+                    }
+                }
             }
+            
+            // 4. YouTube specific overrides (redundant now but kept for specificity)
+            if (isYoutube && node.id === 'video-title') shouldMap = true;
             
             if (shouldMap && isVisible(node)) {
                 seen.add(node);

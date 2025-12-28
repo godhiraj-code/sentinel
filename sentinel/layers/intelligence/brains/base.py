@@ -32,7 +32,8 @@ class BrainInterface(ABC):
         goal: "GoalStep",
         world_state: List[Any],
         history: List[Decision],
-        full_goal: Optional["ParsedGoal"] = None
+        full_goal: Optional["ParsedGoal"] = None,
+        blacklist: Optional[List[str]] = None
     ) -> Decision:
         """
         Make a decision based on the goal and world state.

@@ -10,7 +10,27 @@ from typing import Optional, Union, Any
 from contextlib import contextmanager
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
+import atexit
+import weakref
 from selenium.webdriver.chrome.service import Service as ChromeService
+
+# Global registry for active drivers to prevent resource leaks
+# Uses a strong set to ensure drivers stay alive until atexit can quit them
+_ACTIVE_DRIVERS = set()
+
+def _cleanup_drivers():
+    """Safety net: quit any lingering drivers on process exit."""
+    active = list(_ACTIVE_DRIVERS)
+    if active:
+        for d in active:
+            try:
+                # quit() handles process termination
+                d.quit()
+            except Exception:
+                pass
+    _ACTIVE_DRIVERS.clear()
+
+atexit.register(_cleanup_drivers)
 
 # Type alias for driver - can be extended to support other wrappers
 WebDriverType = webdriver.Chrome
@@ -38,6 +58,8 @@ class StealthDriverManager:
         self._sb = self._stealth_bot.sb
         # Get the actual WebDriver from BaseCase
         self._driver = self._sb.driver
+        # Register for global cleanup
+        _ACTIVE_DRIVERS.add(self._driver)
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -189,6 +211,9 @@ def _create_standard_driver(
         options.add_argument("--start-maximized")
     
     driver = webdriver.Chrome(options=options)
+    
+    # Register for cleanup
+    _ACTIVE_DRIVERS.add(driver)
     
     # Remove webdriver property to reduce detection
     driver.execute_cdp_cmd(

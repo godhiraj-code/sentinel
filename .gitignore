@@ -69,8 +69,8 @@ config.local.yaml
 tests/debug_*.py
 tests/reproduction_*.py
 tests/integration/test_v060_torture_test.py
-tests/validation/
-debug_flight.json
+# tests/validation/
+# debug_flight.json
 debug_reports/
 downloaded_files/
 

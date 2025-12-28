@@ -93,7 +93,11 @@ class ActionExecutor:
         action = decision.action.lower()
         target = decision.target
         
-        if action == "click":
+        if action in ["wait", "verify"]:
+            # 'verify' is a no-op signaled by the brain when a target is found
+            # 'wait' is also a no-op here, as the actual waiting is handled by the intelligence layer
+            return True
+        elif action == "click":
             return self.click_selector(target, force_js=force_js)
         elif action == "type":
             text = decision.metadata.get("text", "") if hasattr(decision, "metadata") else ""

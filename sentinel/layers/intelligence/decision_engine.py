@@ -80,9 +80,10 @@ class DecisionEngine:
         goal: Any,  # Now accepts GoalStep
         world_state: List[Any],
         history: List[Decision],
-        full_goal: Optional[Any] = None  # Now accepts ParsedGoal
+        full_goal: Optional[Any] = None,  # Now accepts ParsedGoal
+        blacklist: Optional[List[str]] = None
     ) -> Decision:
         """
         Delegate decision to the active brain.
         """
-        return self.brain.decide(goal, world_state, history, full_goal=full_goal)
+        return self.brain.decide(goal, world_state, history, full_goal=full_goal, blacklist=blacklist)

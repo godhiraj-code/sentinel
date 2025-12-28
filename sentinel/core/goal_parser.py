@@ -61,7 +61,7 @@ class RegexGoalParser:
         # ... (splitting logic remains same)
         step_texts = re.split(r'\s+(?:and\s+)?then\s+', goal, flags=re.IGNORECASE)
         if len(step_texts) == 1:
-            step_texts = re.split(r'\s+and\s+(?=click|type|enter|input|verify|navigate|go|open)', goal, flags=re.IGNORECASE)
+            step_texts = re.split(r'\s+and\s+(?=click|type|enter|input|search|find|verify|navigate|go|open)', goal, flags=re.IGNORECASE)
 
         parsed_steps = []
         for raw_step in step_texts:
@@ -79,36 +79,69 @@ class RegexGoalParser:
         text_lower = text.lower()
         context_hint = None
         
-        # Extract context keyword (X for Y, X in Y)
-        context_match = re.search(r"(.*?)\s+(for|in|associated with|near)\s+['\"]?([^'\"]+)['\"]?", text, re.IGNORECASE)
+        # Extract context keyword (X for Y, X in Y, X of Y)
+        # Multi-word context support (greedy match until end or reserved keywords)
+        context_match = re.search(r"(.*?)\s+(?:for|in|associated with|near|of)\s+['\"]?([^'\"].*?)['\"]?$", text, re.IGNORECASE)
         if context_match:
-            base_text = context_match.group(1)
-            context_hint = context_match.group(3).strip()
+            base_text = context_match.group(1).strip()
+            context_hint = context_match.group(2).strip()
             # We'll use the base_text for further parsing, but keep full text in description
         else:
             base_text = text
 
         # 1. VERIFY patterns
-        verify_match = re.search(r"verify\s+(?:that\s+)?(?:the\s+)?(?:text|title|heading)?\s*['\"]?([^'\"]+)['\"]?\s*(?:exists|appears|is visible)?", base_text, re.IGNORECASE)
+        # Handle 'verify that X says Y', 'verify heading X counts', etc.
+        # Prioritize quoted text as the value
+        quoted_value = re.search(r"['\"]([^'\"]+)['\"]", base_text)
+        
+        verify_match = re.search(r"verify\s+(?:that\s+)?(?:the\s+)?(.*)$", base_text, re.IGNORECASE)
         if verify_match:
+            val = verify_match.group(1).strip()
+            # If there's quoted text, it's likely the value
+            if quoted_value:
+                val = quoted_value.group(1).strip()
+            else:
+                # Strip trailing "exists", "appears", etc.
+                val = re.sub(r"\s+(?:exists|appears|is visible|is present|says|matches)$", "", val, flags=re.IGNORECASE).strip()
+                # Strip leading keywords
+                val = re.sub(r"^(?:text|title|heading|header|page|the)\s+", "", val, flags=re.IGNORECASE).strip()
+                
             return GoalStep(
                 action="verify",
                 target=TargetSpec(),
-                value=verify_match.group(1).strip(),
+                value=val,
                 context_hint=context_hint,
                 description=text
             )
 
-        # 2. TYPE patterns
-        type_match = re.search(r"(?:type|enter|input)\s+['\"]([^'\"]+)['\"]\s+(?:in|into|on|the)?\s*(.*?)$", base_text, re.IGNORECASE)
+        # 2. TYPE/SEARCH patterns
+        # Handle 'type X in Y', 'search for X', 'enter X into Y'
+        # Check for quoted first
+        type_match = re.search(r"(?:type|enter|input|search|find|lookup)\s+(?:for\s+)?['\"]([^'\"]+)['\"]\s+(?:in|into|on|the|at)?\s*(.*?)$", base_text, re.IGNORECASE)
         if type_match:
             return GoalStep(
                 action="type",
-                target=self._parse_target(type_match.group(2)),
+                target=self._parse_target(type_match.group(2) or "search"),
                 value=type_match.group(1),
                 context_hint=context_hint,
                 description=text
             )
+            
+        # Handle UNQUOTED type/search (last word or after 'for')
+        # e.g. "search for Artificial Intelligence" -> val=AI, target=search
+        unquoted_search = re.search(r"(?:search|find|lookup|type|enter)\s+(?:for\s+)?(.*?)(?:\s+(?:in|into|on|the|at)\s+(.*))?$", base_text, re.IGNORECASE)
+        if unquoted_search:
+            val = unquoted_search.group(1).strip()
+            target_raw = unquoted_search.group(2) or "search"
+            # If value is 'for', or generic, skip
+            if val and val.lower() not in ["the", "a", "for"]:
+                return GoalStep(
+                    action="type",
+                    target=self._parse_target(target_raw),
+                    value=val,
+                    context_hint=context_hint,
+                    description=text
+                )
 
         # 3. CLICK patterns
         click_match = re.search(r"click\s+(?:the\s+)?(.*?)$", base_text, re.IGNORECASE)
@@ -162,8 +195,11 @@ class RegexGoalParser:
             text = text.replace(role_match.group(0), "")
 
         # Remaining text is likely the visible text label
-        # Clean up common fluff
+        # Clean up common fluff (World-Class semantic stripping)
         clean_text = re.sub(r"\s+(?:with|the)\s+", " ", text, flags=re.IGNORECASE).strip()
+        # Strip trailing descriptors like 'button', 'link', 'dropdown'
+        clean_text = re.sub(r"\s+(?:button|link|icon|dropdown|menu|toggle|field|input)$", "", clean_text, flags=re.IGNORECASE).strip()
+        
         if clean_text:
             spec.text = clean_text.strip("'\" ")
             

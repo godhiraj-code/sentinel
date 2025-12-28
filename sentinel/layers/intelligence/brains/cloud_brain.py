@@ -53,9 +53,11 @@ class CloudBrain(BrainInterface):
 
     def decide(
         self,
-        goal: str,
+        goal: Any,
         world_state: List[Any],
-        history: List[Decision]
+        history: List[Decision],
+        full_goal: Optional[Any] = None,
+        blacklist: Optional[List[str]] = None
     ) -> Decision:
         """
         Make a decision using an LLM.

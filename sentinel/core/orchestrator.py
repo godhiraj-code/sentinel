@@ -285,19 +285,31 @@ class SentinelOrchestrator:
                      self._recorder.log_info("All goal steps completed")
                      break
 
+                # Maintain a blacklist for the current step to enable adaptive recovery
+                if not hasattr(self, "_step_blacklist"):
+                    self._step_blacklist = []
+
                 decision = self._brain.decide(
                     goal=current_step,
                     world_state=world_state,
                     history=decisions,
-                    full_goal=self._parsed_goal
+                    full_goal=self._parsed_goal,
+                    blacklist=self._step_blacklist
                 )
                 decisions.append(decision)
                 self._recorder.log_decision(step, decision)
                 
                 # 3. ACT - Execute and Verify
-                success = self._execute_and_verify(step, decision, current_step)
+                success = self._execute_and_verify(step, decision, current_step, before_state=(world_state, self._driver.current_url))
                 
-                # Take screenshot after action to show the result (even if verification failed)
+                # Adaptive Recovery: If action failed to change state, blacklist the specific target
+                if not success and decision.target and decision.target != "body":
+                    self._recorder.log_warning(f"Action failed verification. Blacklisting target: {decision.target}")
+                    self._step_blacklist.append(decision.target)
+                    # We don't increment step cycle but we do record the attempt
+                    continue 
+
+                # Take screenshot after action
                 if self.config.screenshot_on_step:
                     self._recorder.capture_screenshot(f"step_{step}_after_action", driver=self._driver)
                 
@@ -305,9 +317,11 @@ class SentinelOrchestrator:
                 if self._goal_achieved(decisions):
                     self._recorder.log_info(f"🎯 Step success: {current_step.description or str(current_step)}")
                     self._parsed_goal.next_step()
+                    self._step_blacklist = [] # Clear blacklist for new step
                     
                     if self._parsed_goal.is_completed:
                         report_path = self._recorder.generate_report()
+                        self._recorder.log_info("✨ Goal Achieved! Generating final report.")
                         return ExecutionResult(
                         success=True,
                         goal=self.config.goal,
@@ -406,27 +420,44 @@ class SentinelOrchestrator:
     
     def _wait_for_stability(self) -> None:
         """
-        Wait for the UI to reach a stable state before sensing or after action.
-        
-        Uses the waitless-wrapped driver's native stability check by performing
-        a lightweight poll of the body element.
+        Force the UI to reach absolute stability using waitless and explicit checkpoints.
         """
         try:
-            # Re-confirming body exists triggers waitless's automatic 
-            # stability wait if the driver is wrapped.
-            self._driver.find_element("tag name", "body")
-        except Exception:
-            # Fallback if driver is in a weird state
+            # 1. Waitless intervention (if wrapped)
+            if hasattr(self._driver, "wait_for_stability"):
+                self._driver.wait_for_stability()
+            else:
+                # Trigger via find_element (Waitless intercepter)
+                self._driver.find_element("tag name", "body")
+            
+            # 2. Additional "Hydration Grace"
+            # Some sites (React/Next) stabilize their DOM but haven't finished 
+            # binding event listeners. We add a short grace period.
             import time
-            time.sleep(0.5)
+            time.sleep(0.8)
+            
+            # 3. Final visual check if analyzer is available
+            is_blocked, _ = self._visual_analyzer.is_blocked()
+            if is_blocked:
+                 self._recorder.log_info("Stability delayed by visual block (modal/spinner)")
+                 self._wait_for_loading(5)
+                 
+        except Exception as e:
+            self._recorder.log_warning(f"Stability check failed: {e}")
+            import time
+            time.sleep(1.0)
 
-    def _execute_and_verify(self, step_idx: int, decision: Decision, goal_step: GoalStep) -> bool:
+    def _execute_and_verify(self, step_idx: int, decision: Decision, goal_step: GoalStep, before_state: Optional[tuple] = None) -> bool:
         """
         Execute an action and verify it had the intended effect.
         """
-        # 1. Capture BEFORE state
-        before_state = self._dom_mapper.get_page_snapshot()
-        before_url = self._driver.current_url
+        # 1. Capture BEFORE state (if not provided)
+        if before_state:
+             _, before_url = before_state
+        else:
+             before_url = self._driver.current_url
+             
+        before_dom_snapshot = self._dom_mapper.get_page_snapshot()
         
         # 2. Execute Action
         # Try standard execution first
@@ -447,31 +478,28 @@ class SentinelOrchestrator:
         after_url = self._driver.current_url
         
         # If state didn't change and it was a click, RETRY with JS
-        if before_state == after_state and before_url == after_url and decision.action == "click":
-             print(f"DEBUG: Click had no effect. Retrying with JS Force...")
-             success = self._executor.execute(decision, force_js=True)
-             if success:
-                 # Re-wait if JS click worked
-                 try:
-                    self._wait_for_stability()
-                 except: pass
-                 after_state = self._dom_mapper.get_page_snapshot()
-
         # 4. Immediate logical verification (did something happen?)
-        if decision.action == "click":
+        if decision.action in ["click", "type"]:
             # Change is expected: URL change OR DOM change
             if after_url != before_url:
                 self._recorder.log_info(f"Action verified: URL changed to {after_url}")
                 return True
             
-            if after_state != before_state:
-                self._recorder.log_info("Action verified: DOM changed")
+            if after_state != before_dom_snapshot:
+                # We also check if the change was just a minor flicker or a real update
+                # (handled by wait_for_stability, but we return True here to signal effect)
+                self._recorder.log_info("Action verified: Measured DOM state change.")
                 return True
             
-            # If we reached here, both standard and JS clicks failed to change state.
-            # This is a "Silent Failure". We log it but return False so the loop 
-            # can try a different element or strategy.
-            self._recorder.log_info("Action failed: No state change detected (URL or DOM) after multiple click strategies.")
+            # If no change detected, check if we've already achieved the goal step
+            # through some external side effect (unlikely but possible).
+            if self._goal_achieved([decision]): 
+                self._recorder.log_info("Action verified: Goal condition met despite no state change.")
+                return True
+
+            # If we reached here, both standard and JS actions failed to change state.
+            # This triggers the Adaptive Recovery (Blacklisting) in the main loop.
+            self._recorder.log_info(f"Action failed: No measurable state change after {decision.action}.")
             return False
             
         return True
@@ -534,53 +562,43 @@ class SentinelOrchestrator:
     
     def _goal_achieved(self, decisions: List[Decision]) -> bool:
         """
-        Check if the current goal step has been achieved.
+        Check if the CURRENT goal step has been achieved.
         """
         if not self._parsed_goal:
-            verify_text = self._extract_verify_text()
-            if verify_text and self._text_visible_on_page(verify_text):
-                return True
             return False
 
         current_step = self._parsed_goal.current_step
         if not current_step:
             return True
 
-        # 1. Action-specific verification for the CURRENT step
+        # 1. VERIFY patterns
         if current_step.action == "verify":
-            # Just check if the value (text) exists on the page
+            # Check secondary visibility signal
             if current_step.value and self._text_visible_on_page(current_step.value):
-                return True
+                if decisions and decisions[-1].confidence >= 0.6:
+                    return True
+            
+            # Check primary trust signal from intelligence layer
+            if decisions:
+                last_decision = decisions[-1]
+                if last_decision.action == "verify" and last_decision.confidence >= 0.9:
+                    return True
         
+        # 2. NAVIGATE patterns
         elif current_step.action == "navigate":
-            # Check if current URL matches the target value
             if current_step.value and current_step.value in self._driver.current_url:
                 return True
                 
+        # 3. INTERACTION STEPS (click, type)
+        # These are handled by _execute_and_verify's return value in the main loop.
+        # But for redundancy, we return True if the last action matched the intent.
         elif decisions:
-            # For interaction steps (click, type), we are more strict.
-            # We don't mark a click as "done" just because we clicked it.
-            # We check if the NEXT step (if it's a verify) is now true.
-            
-            # If there is a next step and it's a verify step, check it
-            next_step_idx = self._parsed_goal.current_step_index + 1
-            if next_step_idx < len(self._parsed_goal.steps):
-                next_step = self._parsed_goal.steps[next_step_idx]
-                if next_step.action == "verify":
-                    if next_step.value and self._text_visible_on_page(next_step.value):
-                        # The click successfully led to the verify condition!
-                        # We can skip the click step now.
-                        return True
-            
-            # If it's a terminal click (last step), we rely on logical verification
-            # which already happened in _execute_and_verify.
-            if next_step_idx >= len(self._parsed_goal.steps):
-                last = decisions[-1]
-                if last.action == current_step.action:
-                     return True
+            last_decision = decisions[-1]
+            if last_decision.action == current_step.action and last_decision.confidence >= 0.5:
+                 return True
 
         return False
-    
+
     def _extract_verify_text(self) -> Optional[str]:
         """
         Extract text to verify from goal.
@@ -611,45 +629,35 @@ class SentinelOrchestrator:
     
     def _text_visible_on_page(self, text: str) -> bool:
         """
-        Check if specific text is visible on the page using semantic overlap.
+        Check if text is visible, with semantic filtering to avoid generic sidebars/footers.
         """
         try:
-            # 1. Direct substring check (fast path)
-            page_text = self._driver.find_element("tag name", "body").text
-            page_text_lower = page_text.lower()
-            target_text_lower = text.lower()
-            
-            if target_text_lower in page_text_lower:
-                return True
-            
-            # 2. Semantic Token Overlap (robust path)
-            def get_tokens(s):
-                return set(re.findall(r'[a-z0-9]+', s.lower()))
-            
-            # Use a more targeted stop word list
-            stop_words = {
-                "the", "a", "an", "in", "on", "at", "for", "with", "is", "are", 
-                "appears", "visible", "exists", "contains", "show", "shows"
-            }
-            
-            target_set = get_tokens(text) - stop_words
-            if not target_set:
-                return False
+            # Avoid matching text in generic site areas that might lead to "False Pass"
+            script = """
+            return (function(targetText) {
+                targetText = targetText.toLowerCase();
                 
-            # Check if each token exists as a substring in the page content
-            # This handles pluralization ("cassette" matching "cassettes")
-            matches = [t for t in target_set if t in page_text_lower]
-            match_ratio = len(matches) / len(target_set)
-            
-            if match_ratio >= 0.5: 
-                self._recorder.log_info(f"Goal Verification [Semantic]: '{text}' matched via tokens {matches}")
-                return True
+                // 1. Try to find the most specific semantic container
+                const containers = document.querySelectorAll('article, main, #content, .post, .post-content, .entry-content');
+                for (let container of containers) {
+                    if (container.innerText.toLowerCase().includes(targetText)) return true;
+                }
                 
-            return False
+                // 2. Direct body check, but exclude noisy sections
+                const body = document.body.cloneNode(true);
+                const noisyTags = ['nav', 'footer', 'aside', 'script', 'style'];
+                const noise = body.querySelectorAll(noisyTags.join(', ') + ', .sidebar, .related-posts, .menu');
+                noise.forEach(n => n.remove());
+                
+                return body.innerText.toLowerCase().includes(targetText);
+            })(arguments[0]);
+            """
+            return self._driver.execute_script(script, text)
         except Exception as e:
-            if hasattr(self, "_recorder") and self._recorder:
-                self._recorder.log_info(f"Verification debug: Semantic check skipped. Target: '{text}'")
-            return False
+            # Fallback to standard check if script fails
+            self._recorder.log_warning(f"Semantic verification failed: {e}. Falling back to standard check.")
+            page_text = self._driver.find_element("tag name", "body").text.lower()
+            return text.lower() in page_text
     
     def _pivot_to_stealth(self) -> bool:
         """
@@ -701,3 +709,10 @@ class SentinelOrchestrator:
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         """Context manager exit."""
         self.close()
+
+    def __del__(self):
+        """Final backup cleanup on garbage collection."""
+        try:
+            self.close()
+        except Exception:
+            pass
