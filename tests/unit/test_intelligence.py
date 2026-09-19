@@ -11,6 +11,10 @@ class MockElement:
         self.is_visible = is_visible
         self.is_interactive = is_interactive
         self.attributes = {}
+        self.id = None
+        self.shadow_path = None
+        self.context_text = ""
+        self.bounding_box = None
 
 def test_decision_engine_heuristic_fallback():
     """Test that DecisionEngine falls back to HeuristicBrain when brain_type is unknown."""
@@ -38,7 +42,9 @@ def test_heuristic_brain_decision():
     from sentinel.layers.intelligence.brains.heuristic_brain import HeuristicBrain
     brain = HeuristicBrain()
     
-    goal = "click the login button"
+    from sentinel.core.goal_parser import RegexGoalParser
+
+    goal = RegexGoalParser().parse("click the login button").current_step
     world_state = [
         MockElement(tag="button", text="Login", selector="#login"),
         MockElement(tag="div", text="Header", selector=".header", is_interactive=False)

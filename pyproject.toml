@@ -78,6 +78,7 @@ llm = [
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
+    "pytest-socket>=0.7.0",
     "pytest-mockllm>=0.2.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
@@ -112,7 +113,10 @@ packages = ["sentinel"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short -m 'not integration'"
+markers = [
+    "integration: opt-in tests that launch a browser and may access live external sites",
+]
 
 [tool.black]
 line-length = 88

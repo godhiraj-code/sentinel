@@ -1,5 +1,6 @@
 import pytest
 from dataclasses import dataclass
+from typing import Optional
 from unittest.mock import MagicMock, patch
 from sentinel.layers.action.executor import ActionExecutor, ActionResult
 

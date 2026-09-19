@@ -122,18 +122,22 @@ mypy sentinel/
 ### Running Tests
 
 ```bash
-# Run all tests
+# Run deterministic unit tests (the default; integration tests are excluded)
 pytest
 
-# Run with coverage
-pytest --cov=sentinel
+# Enforce offline unit tests locally
+pytest tests/unit -m "not integration" --disable-socket
 
 # Run specific test file
 pytest tests/unit/test_dom_mapper.py
 
-# Run only fast tests
-pytest -m "not slow"
+# Explicitly run live browser tests against external sites
+pytest -o addopts="-v --tb=short" tests/integration -m integration
 ```
+
+Live integration tests are intentionally excluded from normal local and CI test
+runs. The GitHub Actions live-browser workflow is manual and requires explicit
+confirmation because it launches a browser and accesses public sites.
 
 ### Writing Tests
 
