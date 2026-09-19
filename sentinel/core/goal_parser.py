@@ -81,7 +81,17 @@ class RegexGoalParser:
         
         # Extract context keyword (X for Y, X in Y, X of Y)
         # Multi-word context support (greedy match until end or reserved keywords)
-        context_match = re.search(r"(.*?)\s+(?:for|in|associated with|near|of)\s+['\"]?([^'\"].*?)['\"]?$", text, re.IGNORECASE)
+        # For typing/search actions, "in" and "into" identify the input target,
+        # not surrounding page context. Let the action parser consume the whole
+        # clause before applying generic context extraction to other actions.
+        input_action = re.match(
+            r"\s*(?:type|enter|input|search|find|lookup)\b", text, re.IGNORECASE
+        )
+        context_match = None if input_action else re.search(
+            r"(.*?)\s+(?:for|in|associated with|near|of)\s+['\"]?([^'\"].*?)['\"]?$",
+            text,
+            re.IGNORECASE,
+        )
         if context_match:
             base_text = context_match.group(1).strip()
             context_hint = context_match.group(2).strip()

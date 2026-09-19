@@ -1,0 +1,26 @@
+name: Offline unit tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install package and unit-test dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Validate installed package and CLI
+        run: |
+          python -c "import sentinel; from sentinel.cli.main import cli"
+          sentinel --help
+      - name: Run deterministic offline unit tests
+        run: python -m pytest tests/unit -m "not integration" --disable-socket

@@ -8,7 +8,7 @@ def test_parse_single_click():
     
     assert len(parsed.steps) == 1
     assert parsed.steps[0].action == "click"
-    assert parsed.steps[0].target.text == "Login button"
+    assert parsed.steps[0].target.text == "Login"
 
 def test_parse_multi_step_then():
     parser = RegexGoalParser()
@@ -30,6 +30,7 @@ def test_parse_multi_step_and_then():
     assert parsed.steps[0].action == "type"
     assert parsed.steps[0].value == "admin"
     assert "user" in parsed.steps[0].target.text.lower()
+    assert parsed.steps[0].context_hint is None
     assert parsed.steps[1].action == "click"
     assert parsed.steps[1].target.text == "Submit"
 
