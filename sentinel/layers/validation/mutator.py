@@ -206,64 +206,64 @@ class UIMutator:
         try:
             if strategy == "stealth_disable":
                 # Disable element without visual change
-                original_state = self.driver.execute_script(f"""
-                    const el = document.querySelector('{selector}');
+                original_state = self.driver.execute_script("""
+                    const el = document.querySelector(arguments[0]);
                     const original = el.disabled;
                     el.disabled = true;
                     el.style.pointerEvents = 'none';
                     return original;
-                """)
+                """, selector)
             
             elif strategy == "ghost_element":
                 # Hide element but keep space
-                original_state = self.driver.execute_script(f"""
-                    const el = document.querySelector('{selector}');
+                original_state = self.driver.execute_script("""
+                    const el = document.querySelector(arguments[0]);
                     const original = el.style.visibility;
                     el.style.visibility = 'hidden';
                     return original;
-                """)
+                """, selector)
             
             elif strategy == "data_sabotage":
                 # Change text content slightly
-                original_state = self.driver.execute_script(f"""
-                    const el = document.querySelector('{selector}');
+                original_state = self.driver.execute_script("""
+                    const el = document.querySelector(arguments[0]);
                     const original = el.textContent;
                     el.textContent = original + ' ';  // Add invisible change
                     return original;
-                """)
+                """, selector)
             
             elif strategy == "logic_sabotage":
                 # Remove click handler
-                original_state = self.driver.execute_script(f"""
-                    const el = document.querySelector('{selector}');
+                original_state = self.driver.execute_script("""
+                    const el = document.querySelector(arguments[0]);
                     const original = el.onclick;
                     el.onclick = (e) => e.preventDefault();
                     return 'onclick_removed';
-                """)
+                """, selector)
             
             elif strategy == "ui_shift":
                 # Shift element position
-                original_state = self.driver.execute_script(f"""
-                    const el = document.querySelector('{selector}');
+                original_state = self.driver.execute_script("""
+                    const el = document.querySelector(arguments[0]);
                     const original = el.style.marginLeft;
                     el.style.marginLeft = '50px';
                     return original;
-                """)
+                """, selector)
             
             elif strategy == "slow_load":
                 # Add artificial delay (mark element)
-                original_state = self.driver.execute_script(f"""
-                    const el = document.querySelector('{selector}');
+                original_state = self.driver.execute_script("""
+                    const el = document.querySelector(arguments[0]);
                     el.dataset.sentinelDelayed = 'true';
                     return 'delayed';
-                """)
+                """, selector)
             
             mutation = Mutation(
                 name=f"{strategy}_{selector[:20]}",
                 description=f"Applied {strategy} to {selector}",
                 element_selector=selector,
                 mutation_type=strategy,
-                original_state=str(original_state) if original_state else None,
+                original_state=str(original_state) if original_state is not None else None,
             )
             self._applied_mutations.append(mutation)
             return mutation
@@ -284,30 +284,30 @@ class UIMutator:
             original = mutation.original_state
             
             if strategy == "stealth_disable":
-                self.driver.execute_script(f"""
-                    const el = document.querySelector('{selector}');
-                    el.disabled = {str(original).lower() if original else 'false'};
+                self.driver.execute_script("""
+                    const el = document.querySelector(arguments[0]);
+                    el.disabled = arguments[1];
                     el.style.pointerEvents = '';
-                """)
+                """, selector, str(original).lower() == "true")
             
             elif strategy == "ghost_element":
-                self.driver.execute_script(f"""
-                    const el = document.querySelector('{selector}');
-                    el.style.visibility = '{original or "visible"}';
-                """)
+                self.driver.execute_script("""
+                    const el = document.querySelector(arguments[0]);
+                    el.style.visibility = arguments[1];
+                """, selector, original if original is not None else "visible")
             
             elif strategy == "data_sabotage":
-                if original:
-                    self.driver.execute_script(f"""
-                        const el = document.querySelector('{selector}');
-                        el.textContent = `{original}`;
-                    """)
+                if original is not None:
+                    self.driver.execute_script("""
+                        const el = document.querySelector(arguments[0]);
+                        el.textContent = arguments[1];
+                    """, selector, original)
             
             elif strategy == "ui_shift":
-                self.driver.execute_script(f"""
-                    const el = document.querySelector('{selector}');
-                    el.style.marginLeft = '{original or "0"}';
-                """)
+                self.driver.execute_script("""
+                    const el = document.querySelector(arguments[0]);
+                    el.style.marginLeft = arguments[1];
+                """, selector, original if original is not None else "0")
             
             mutation.reverted = True
             return True

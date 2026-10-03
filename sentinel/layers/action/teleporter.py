@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 import json
 import os
+from pathlib import Path
 
 if TYPE_CHECKING:
     from selenium.webdriver.remote.webdriver import WebDriver
@@ -98,15 +99,14 @@ class Teleporter:
         Returns:
             Path to the saved state file
         """
+        state_path = self._state_path(name)
         if self._has_teleport:
             # Use selenium-teleport
             return self._teleport.save(name)
         
         # Fallback implementation
         state = self._capture_state()
-        state_path = os.path.join(self.state_dir, f"{name}.json")
-        
-        with open(state_path, "w") as f:
+        with open(state_path, "w", encoding="utf-8") as f:
             json.dump(state.to_dict(), f, indent=2)
         
         return state_path
@@ -121,6 +121,10 @@ class Teleporter:
         Returns:
             True if state was restored successfully
         """
+        try:
+            state_path = self._state_path(name)
+        except ValueError:
+            return False
         if self._has_teleport:
             # Use selenium-teleport
             try:
@@ -130,13 +134,11 @@ class Teleporter:
                 return False
         
         # Fallback implementation
-        state_path = os.path.join(self.state_dir, f"{name}.json")
-        
         if not os.path.exists(state_path):
             return False
         
         try:
-            with open(state_path, "r") as f:
+            with open(state_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             
             state = SessionState.from_dict(data)
@@ -155,12 +157,24 @@ class Teleporter:
     
     def delete_state(self, name: str) -> bool:
         """Delete a saved state."""
-        state_path = os.path.join(self.state_dir, f"{name}.json")
         try:
+            state_path = self._state_path(name)
             os.remove(state_path)
             return True
         except Exception:
             return False
+
+    def _state_path(self, name: str) -> str:
+        """Keep named browser state files inside their configured directory."""
+        if not isinstance(name, str) or not name or name in {".", ".."}:
+            raise ValueError("State name must be a non-empty filename")
+        if any(character in name for character in '/\\\x00:'):
+            raise ValueError("State name must not contain path separators")
+        root = Path(self.state_dir).resolve()
+        path = root / f"{name}.json"
+        if path.resolve().parent != root:
+            raise ValueError("State file must remain inside the state directory")
+        return str(path)
     
     def _capture_state(self) -> SessionState:
         """Capture current browser state."""
@@ -213,7 +227,7 @@ class Teleporter:
         for key, value in state.local_storage.items():
             try:
                 self.driver.execute_script(
-                    f"localStorage.setItem('{key}', '{value}')"
+                    "localStorage.setItem(arguments[0], arguments[1]);", key, value
                 )
             except Exception:
                 pass
@@ -222,7 +236,7 @@ class Teleporter:
         for key, value in state.session_storage.items():
             try:
                 self.driver.execute_script(
-                    f"sessionStorage.setItem('{key}', '{value}')"
+                    "sessionStorage.setItem(arguments[0], arguments[1]);", key, value
                 )
             except Exception:
                 pass

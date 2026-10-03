@@ -9,6 +9,9 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: read
+
 jobs:
   live-browser:
     if: ${{ inputs.confirm_live_sites }}
