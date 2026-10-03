@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from datetime import datetime
 import json
 import os
+from html import escape
 
 if TYPE_CHECKING:
     from sentinel.layers.intelligence.decision_engine import Decision
@@ -299,17 +300,17 @@ class FlightRecorder:
             if entry.screenshot_path:
                 try:
                     rel_path = os.path.relpath(entry.screenshot_path, self.run_dir)
-                    screenshot_html = f'<img src="{rel_path}" class="timeline-screenshot">'
+                    screenshot_html = f'<img src="{escape(rel_path, quote=True)}" class="timeline-screenshot">'
                 except ValueError:
                     # Fallback if paths are on different drives
-                    screenshot_html = f'<img src="{entry.screenshot_path}" class="timeline-screenshot">'
+                    screenshot_html = f'<img src="{escape(entry.screenshot_path, quote=True)}" class="timeline-screenshot">'
 
             timeline_html += f"""
             <div class="timeline-item {status_class}">
                 <div class="timeline-icon">{icon}</div>
                 <div class="timeline-content">
                     <div class="timeline-time">{entry.timestamp.strftime('%H:%M:%S')}</div>
-                    <div class="timeline-message">{entry.message}</div>
+                    <div class="timeline-message">{escape(str(entry.message))}</div>
                     {self._format_data(entry.data) if entry.data else ''}
                     {screenshot_html}
                 </div>
@@ -321,7 +322,7 @@ class FlightRecorder:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sentinel Flight Record - {self.run_name}</title>
+    <title>Sentinel Flight Record - {escape(str(self.run_name))}</title>
     <style>
         :root {{
             --bg-dark: #0d1117;
@@ -451,8 +452,8 @@ class FlightRecorder:
     <div class="container">
         <div class="header">
             <h1>🛡️ Sentinel Flight Record</h1>
-            <p>Run: {self.run_name}</p>
-            <p>{self.metadata.get('url', 'N/A')}</p>
+            <p>Run: {escape(str(self.run_name))}</p>
+            <p>{escape(str(self.metadata.get('url', 'N/A')))}</p>
         </div>
         
         <div class="stats">
@@ -514,4 +515,4 @@ class FlightRecorder:
         if not filtered:
             return ""
         
-        return f'<div class="timeline-data">{json.dumps(filtered, indent=2)}</div>'
+        return f'<div class="timeline-data">{escape(json.dumps(filtered, indent=2))}</div>'
