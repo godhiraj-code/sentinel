@@ -80,10 +80,10 @@ class Teleporter:
         os.makedirs(state_dir, exist_ok=True)
     
     def _init_teleport_lib(self) -> None:
-        """Try to initialize selenium-teleport if available."""
+        """Find selenium-teleport; each instance needs its own state file path."""
         try:
             from selenium_teleport import Teleport
-            self._teleport = Teleport(self.driver)
+            self._teleport = Teleport
             self._has_teleport = True
         except ImportError:
             self._teleport = None
@@ -101,8 +101,8 @@ class Teleporter:
         """
         state_path = self._state_path(name)
         if self._has_teleport:
-            # Use selenium-teleport
-            return self._teleport.save(name)
+            self._teleport(self.driver, state_path).save()
+            return state_path
         
         # Fallback implementation
         state = self._capture_state()
@@ -125,22 +125,19 @@ class Teleporter:
             state_path = self._state_path(name)
         except ValueError:
             return False
-        if self._has_teleport:
-            # Use selenium-teleport
-            try:
-                self._teleport.load(name)
-                return True
-            except Exception:
-                return False
-        
-        # Fallback implementation
         if not os.path.exists(state_path):
             return False
         
         try:
             with open(state_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
+
+            if self._has_teleport and "metadata" in data:
+                destination_url = data["metadata"]["source_url"]
+                self._teleport(self.driver, state_path).load(destination_url)
+                return True
             
+            # Continue accepting states saved by the fallback implementation.
             state = SessionState.from_dict(data)
             self._apply_state(state)
             return True
